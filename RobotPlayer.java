@@ -52,9 +52,19 @@ public strictfp class RobotPlayer {
                     // to make sure setup phase has ended.
                     if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
                         MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                        MapLocation firstLoc = spawnLocs[0];
-                        Direction dir = rc.getLocation().directionTo(firstLoc);
-                        if (rc.canMove(dir)) rc.move(dir);
+                        MapLocation bestSpawnLoc = null;
+                        for(int k = 0; k < spawnLocs.length; k++) {
+                            if(
+                                bestSpawnLoc == null
+                                || (
+                                    rc.getLocation().distanceSquaredTo(spawnLocs[k])
+                                    < rc.getLocation().distanceSquaredTo(bestSpawnLoc)
+                                )
+                            ) {
+                                bestSpawnLoc = spawnLocs[k];
+                            }
+                        }
+                        hybridMove(rc, bestSpawnLoc);
                     }
                     
                     exploreMove(rc);
