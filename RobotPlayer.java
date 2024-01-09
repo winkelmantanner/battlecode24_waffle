@@ -2,14 +2,18 @@ package waffle;
 
 import battlecode.common.*;
 
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 
 public strictfp class RobotPlayer {
 
     static final Random rng = new Random(742236);
 
+    static final int ADJACENT_DISTANCE_SQUARED = 2;
+
     /** Array containing all the possible movement directions. */
-    static final Direction[] directions = {
+    static final Direction[] MOVEMENT_DIRECTIONS = {
         Direction.NORTH,
         Direction.NORTHEAST,
         Direction.EAST,
@@ -37,6 +41,8 @@ public strictfp class RobotPlayer {
                     if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
                 }
                 else{
+                    updateRobotArrays(rc);
+
                     if (rc.canPickupFlag(rc.getLocation())){
                         rc.pickupFlag(rc.getLocation());
                         rc.setIndicatorString("Holding a flag!");
@@ -51,15 +57,13 @@ public strictfp class RobotPlayer {
                         if (rc.canMove(dir)) rc.move(dir);
                     }
                     // Move and attack randomly if no objective.
-                    Direction dir = directions[rng.nextInt(directions.length)];
+                    Direction dir = MOVEMENT_DIRECTIONS[rng.nextInt(MOVEMENT_DIRECTIONS.length)];
                     MapLocation nextLoc = rc.getLocation().add(dir);
                     if (rc.canMove(dir)){
                         rc.move(dir);
                     }
-                    else if (rc.canAttack(nextLoc)){
-                        rc.attack(nextLoc);
-                        System.out.println("Take that! Damaged an enemy that was in our way!");
-                    }
+                    
+                    attack(rc);
 
                     // Rarely attempt placing traps behind the robot.
                     MapLocation prevLoc = rc.getLocation().subtract(dir);
@@ -110,4 +114,221 @@ public strictfp class RobotPlayer {
             }
         }
     }
+
+    static void attack(RobotController rc) throws GameActionException {
+        double minScore = 0;
+        RobotInfo bestRbt = null;
+        for(int enemyRbtIdx = 0; enemyRbtIdx < nearbyEnemyRobotsLength; enemyRbtIdx++) {
+            RobotInfo enemyRbt = nearbyEnemyRobots[enemyRbtIdx];
+            if(
+                rc.canAttack(enemyRbt.location)
+                && (
+                    bestRbt == null
+                    || getAttackTargetScoreToMinimize(rc, enemyRbt) < minScore
+                )
+            ) {
+                bestRbt = enemyRbt;
+                minScore = getAttackTargetScoreToMinimize(rc, enemyRbt);
+            }
+        }
+        if(bestRbt != null) {
+            rc.attack(bestRbt.location);
+        }
+    }
+    static double getAttackTargetScoreToMinimize(RobotController rc, RobotInfo enemyRbt) {
+        return enemyRbt.health + rc.getLocation().distanceSquaredTo(enemyRbt.location);
+    }
+
+
+
+
+
+    static RobotInfo [] nearbyFriendlyRobots = new RobotInfo[4 * GameConstants.VISION_RADIUS_SQUARED];
+    static int nearbyFriendlyRobotsLength = 0;
+    static RobotInfo [] nearbyEnemyRobots = new RobotInfo[4 * GameConstants.VISION_RADIUS_SQUARED];
+    static int nearbyEnemyRobotsLength = 0;
+    static void updateRobotArrays(RobotController rc) throws GameActionException {
+        nearbyFriendlyRobotsLength = 0;
+        nearbyEnemyRobotsLength = 0;
+        for(RobotInfo robotInfo : rc.senseNearbyRobots(-1)) {
+            if(robotInfo.getTeam().equals(rc.getTeam())) {
+                nearbyFriendlyRobots[nearbyFriendlyRobotsLength] = robotInfo;
+                nearbyFriendlyRobotsLength++;
+            } else {
+                nearbyEnemyRobots[nearbyEnemyRobotsLength] = robotInfo;
+                nearbyEnemyRobotsLength++;
+            }
+        }
+    }
+
+
+
+
+
+    static MapLocation exploreTarget = null;
+    static MapLocation lastTurnExploreMoveEndLoc = null;
+    static boolean exploreMove(RobotController rc) throws GameActionException {
+        return exploreMove(rc, defaultCanMove);
+    }
+    static boolean exploreMove(RobotController rc, CanMove canMove) throws GameActionException {
+        boolean didMove = false;
+        if(lastTurnExploreMoveEndLoc != null
+            && !rc.getLocation().equals(lastTurnExploreMoveEndLoc)
+        ) {
+            exploreTarget = null;
+        }
+        while(rc.isMovementReady()) {
+            int tryLimiter = 10;
+            while(tryLimiter >= 0
+                && (exploreTarget == null
+                    || rc.getLocation().equals(exploreTarget)
+                    || !canMove.test(rc, rc.getLocation().directionTo(exploreTarget))
+                )
+            ) {
+                final int mw = rc.getMapWidth();
+                final int mh = rc.getMapHeight();
+                exploreTarget = new MapLocation(
+                    rng.nextInt(2 * mw) - (mw / 2),
+                    rng.nextInt(2 * mh) - (mh / 2)
+                );
+                tryLimiter--;
+            }
+            final Direction dir = rc.getLocation().directionTo(exploreTarget);
+            if(canMove.test(rc, dir)) {
+                rc.move(dir);
+                didMove = true;
+                rc.setIndicatorString("EXPLORE MOVE " + didMove + " " + dir.toString());
+            } else {
+                break;
+            }
+        }
+        lastTurnExploreMoveEndLoc = rc.getLocation();
+        return didMove;
+    }
+
+
+
+
+
+    static interface CanMove {
+        boolean test(RobotController rc, Direction d) throws GameActionException;
+    }
+    static CanMove defaultCanMove = (rc, d) -> rc.canMove(d);
+
+    static enum HybridStatus {FUZZY, BUG;}
+    static HybridStatus hybridStatus = HybridStatus.FUZZY;
+    static MapLocation bugObstacle = null;
+    static Set<MapLocation> bugMemory = null;
+    static boolean isBugRotatingLeft = false;
+    static int bugStartDistFromDest = -1;
+    static MapLocation hybridMoveLastCallEndLoc = null;
+    static MapLocation hybridMoveLastCallDest = null;
+    static void startBug(RobotController rc, MapLocation dest) {
+        hybridStatus = HybridStatus.BUG;
+        bugObstacle = rc.adjacentLocation(rc.getLocation().directionTo(dest));
+        bugMemory = new HashSet<MapLocation>();
+        isBugRotatingLeft = rng.nextBoolean();
+        bugStartDistFromDest = rc.getLocation().distanceSquaredTo(dest);
+    }
+    static void endBugStartFuzzy() {
+        hybridStatus = HybridStatus.FUZZY;
+        bugObstacle = null;
+        bugMemory = null;
+        bugStartDistFromDest = -1;
+    }
+    static int dot(Direction d1, Direction d2) {
+        return (d1.dx*d2.dx) + (d1.dy*d2.dy);
+    }
+    static boolean bugCanMove(RobotController rc, Direction d, CanMove canMove) throws GameActionException {
+        return canMove.test(rc, d);
+    }
+    static Direction getRotated(Direction d, boolean left) {
+        return left ? d.rotateLeft() : d.rotateRight();
+    }
+    static void hybridMove(RobotController rc, MapLocation dest) throws GameActionException {
+        hybridMove(rc, dest, defaultCanMove);
+    }
+    static void hybridMove(RobotController rc, MapLocation dest, CanMove canMove) throws GameActionException {
+        if(hybridMoveLastCallEndLoc == null
+            || !hybridMoveLastCallEndLoc.equals(rc.getLocation())
+            || hybridMoveLastCallDest == null
+            || !hybridMoveLastCallDest.equals(dest)
+        ) {
+            endBugStartFuzzy();
+        }
+        boolean isStuck = false;
+        while(!isStuck
+            && rc.isMovementReady()
+            && !rc.getLocation().equals(dest)
+        ) {
+            isStuck = true;
+            if(HybridStatus.FUZZY.equals(hybridStatus)) {
+                int bestDist = 12345;
+                Direction bestDir = null;
+                for(Direction d : MOVEMENT_DIRECTIONS) {
+                    final MapLocation neighbor = rc.adjacentLocation(d);
+                    if(canMove.test(rc, d)
+                        && (
+                            bestDir == null
+                            || bestDist > neighbor.distanceSquaredTo(dest)
+                        )
+                    ) {
+                        bestDir = d;
+                        bestDist = neighbor.distanceSquaredTo(dest);
+                    }
+                }
+                if(bestDir != null) {
+                    isStuck = false;
+                    if(bestDist < rc.getLocation().distanceSquaredTo(dest)) {
+                        rc.move(bestDir);
+                    } else {
+                        startBug(rc, dest);
+                    }
+                } // else we're stuck
+            } else if(HybridStatus.BUG.equals(hybridStatus)) {
+                if(bugMemory.contains(rc.getLocation())) {
+                    endBugStartFuzzy();
+                    isStuck = false;
+                } else if(rc.getLocation().distanceSquaredTo(dest) <= ADJACENT_DISTANCE_SQUARED
+                    && !bugCanMove(rc, rc.getLocation().directionTo(dest), canMove)
+                ) {
+                    // If we are adjacent to the dest but cannot move to the dest,
+                    //   then the dest is obstructed, so don't bug away from the dest.
+                    endBugStartFuzzy();
+                    // Let isStuck be true.
+                } else {
+                    Direction bugDirection = rc.getLocation().directionTo(bugObstacle);
+                    if(bugCanMove(rc, bugDirection, canMove)) {
+                        // The obstacle has moved out of the way
+                        endBugStartFuzzy();
+                        isStuck = false;
+                    } else {
+                        int rotateCount = 0;
+                        while(!bugCanMove(rc, bugDirection, canMove) && rotateCount < 8) {
+                            bugObstacle = rc.adjacentLocation(bugDirection);
+                            bugDirection = getRotated(bugDirection, isBugRotatingLeft);
+                            rotateCount++;
+                        }
+                        if(!bugCanMove(rc, bugDirection, canMove)) {
+                            endBugStartFuzzy();
+                            // We're stuck; we cannot move.
+                            // Let isStuck be true.
+                        } else {
+                            bugMemory.add(rc.getLocation());
+                            rc.move(bugDirection);
+                            isStuck = false;
+                            if(rc.getLocation().distanceSquaredTo(dest) < bugStartDistFromDest) {
+                                endBugStartFuzzy();
+                            }
+                        }
+                    }
+                }
+            } // end if hybridStatus equals BUG
+        } // end while
+// rc.setIndicatorString("hybridMove round" + rc.getRoundNum() + " dest " + dest.toString() + " ending in status " + hybridStatus);
+
+        hybridMoveLastCallEndLoc = rc.getLocation();
+        hybridMoveLastCallDest = dest;
+    }
+
 }
