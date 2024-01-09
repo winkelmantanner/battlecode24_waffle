@@ -61,6 +61,8 @@ public strictfp class RobotPlayer {
                     
                     attack(rc);
 
+                    heal(rc);
+
                     Direction dir = MOVEMENT_DIRECTIONS[rng.nextInt(MOVEMENT_DIRECTIONS.length)];
                     // Rarely attempt placing traps behind the robot.
                     MapLocation prevLoc = rc.getLocation().subtract(dir);
@@ -114,6 +116,24 @@ public strictfp class RobotPlayer {
     }
     static double getAttackTargetScoreToMinimize(RobotController rc, RobotInfo enemyRbt) {
         return enemyRbt.health + rc.getLocation().distanceSquaredTo(enemyRbt.location);
+    }
+
+    static void heal(RobotController rc) throws GameActionException {
+        int minHealth = 0;
+        RobotInfo bestRbt = null;
+        for(int friendlyRbtIdx = 0; friendlyRbtIdx < nearbyFriendlyRobotsLength; friendlyRbtIdx++) {
+            RobotInfo friendlyRbt = nearbyFriendlyRobots[friendlyRbtIdx];
+            if(
+                rc.canHeal(friendlyRbt.location)
+                && (bestRbt == null || friendlyRbt.health < minHealth)
+            ) {
+                bestRbt = friendlyRbt;
+                minHealth = friendlyRbt.health;
+            }
+        }
+        if(bestRbt != null) {
+            rc.heal(bestRbt.location);
+        }
     }
 
 
