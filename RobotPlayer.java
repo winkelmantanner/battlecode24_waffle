@@ -163,9 +163,6 @@ public strictfp class RobotPlayer {
     static int nearbyEnemyRobotsLength = 0;
     static MapLocation locLastSawEnemy = null;
     static int roundLastSawEnemy = -12345;
-    static FlagInfo [] nearbyEnemyFlags = new FlagInfo[GameConstants.NUMBER_FLAGS];
-    static int nearbyEnemyFlagsLength = 0;
-    static FlagInfo nearestEnemyFlag = null;
     static void updateRobotArrays(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
@@ -187,24 +184,11 @@ public strictfp class RobotPlayer {
             );
             roundLastSawEnemy = rc.getRoundNum();
         }
-        nearbyEnemyFlagsLength = 0;
-        nearestEnemyFlag = null;
-        int nearestEnemyFlagDistSqd = 0;
-        for(FlagInfo flagInfo : rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
-            nearbyEnemyFlags[nearbyEnemyFlagsLength] = flagInfo;
-            nearbyEnemyFlagsLength++;
-            final int distSqd = rc.getLocation().distanceSquaredTo(flagInfo.getLocation());
-            if(distSqd < nearestEnemyFlagDistSqd) {
-                nearestEnemyFlagDistSqd = distSqd;
-                nearestEnemyFlag = flagInfo;
-            }
-        }
     }
 
 
     static void pickupEnemyFlags(RobotController rc) throws GameActionException {
-        for(int k = 0; k < nearbyEnemyFlagsLength; k++) {
-            final FlagInfo fi = nearbyEnemyFlags[k];
+        for(FlagInfo fi : rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
             if(rc.canPickupFlag(fi.getLocation())) {
                 rc.pickupFlag(fi.getLocation());
             }
@@ -223,8 +207,6 @@ public strictfp class RobotPlayer {
         return value;
     }
     static void moveAssumingDontHaveFlag(RobotController rc) throws GameActionException {
-        moveTowardSensedEnemyFlags(rc);
-
         if(rc.getRoundNum() - roundLastSawEnemy < 5) {
             double bestScore = 0;
             Direction bestDir = null;
@@ -240,26 +222,8 @@ public strictfp class RobotPlayer {
             if(bestDir != null) {
                 rc.move(bestDir);
             }
-        }
-
-        exploreMove(rc);
-    }
-
-    static void moveTowardSensedEnemyFlags(RobotController rc) throws GameActionException {
-        if(nearestEnemyFlag != null) {
-            int assistantCount = 0;
-            MapLocation flagLoc = nearestEnemyFlag.getLocation();
-            for(int k = 0; k < nearbyFriendlyRobotsLength; k++) {
-                RobotInfo friendlyRbt = nearbyFriendlyRobots[nearbyFriendlyRobotsLength];
-                if(friendlyRbt.getLocation().distanceSquaredTo(flagLoc)
-                    <= GameConstants.VISION_RADIUS_SQUARED
-                ) {
-                    assistantCount++;
-                }
-            }
-            if(assistantCount >= 2) {
-                hybridMove(rc, flagLoc);
-            }
+        } else {
+            exploreMove(rc);
         }
     }
 
