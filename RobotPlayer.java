@@ -36,11 +36,11 @@ public strictfp class RobotPlayer {
                 // Robots not spawned in do not have vision of any tiles and cannot perform any actions.
                 if (!rc.isSpawned()){
                     MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                    // Pick a random spawn location to attempt spawning in.
-                    MapLocation randomLoc = spawnLocs[rng.nextInt(spawnLocs.length)];
-                    if (rc.canSpawn(randomLoc)) rc.spawn(randomLoc);
-                }
-                else{
+                    MapLocation mySpawnLoc = spawnLocs[rc.getID() % spawnLocs.length];
+                    if (rc.canSpawn(mySpawnLoc)) {
+                        rc.spawn(mySpawnLoc);
+                    }
+                } else {
                     updateRobotArrays(rc);
 
                     pickupEnemyFlags(rc);
