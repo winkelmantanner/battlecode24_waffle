@@ -67,7 +67,9 @@ public strictfp class RobotPlayer {
                         hybridMove(rc, bestSpawnLoc);
                     }
                     
-                    exploreMove(rc);
+                    attack(rc);
+
+                    moveAssumingDontHaveFlag(rc);
                     
                     attack(rc);
 
@@ -148,9 +150,12 @@ public strictfp class RobotPlayer {
     static int nearbyFriendlyRobotsLength = 0;
     static RobotInfo [] nearbyEnemyRobots = new RobotInfo[4 * GameConstants.VISION_RADIUS_SQUARED];
     static int nearbyEnemyRobotsLength = 0;
+    static MapLocation locLastSawEnemy = null;
+    static int roundLastSawEnemy = -12345;
     static void updateRobotArrays(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
+        int totalEnemyRobotX = 0; int totalEnemyRobotY = 0;
         for(RobotInfo robotInfo : rc.senseNearbyRobots(-1)) {
             if(robotInfo.getTeam().equals(rc.getTeam())) {
                 nearbyFriendlyRobots[nearbyFriendlyRobotsLength] = robotInfo;
@@ -158,12 +163,49 @@ public strictfp class RobotPlayer {
             } else {
                 nearbyEnemyRobots[nearbyEnemyRobotsLength] = robotInfo;
                 nearbyEnemyRobotsLength++;
+                totalEnemyRobotX += robotInfo.location.x; totalEnemyRobotY += robotInfo.location.y;
             }
+        }
+        if(nearbyEnemyRobotsLength >= 1) {
+            locLastSawEnemy = new MapLocation(
+                totalEnemyRobotX / nearbyEnemyRobotsLength,
+                totalEnemyRobotY / nearbyEnemyRobotsLength
+            );
+            roundLastSawEnemy = rc.getRoundNum();
         }
     }
 
 
+    static double evaluateLocationForCombat(RobotController rc, MapLocation locToEvaluate) {
+        double value = 0;
 
+        if(rc.isActionReady()) {
+            value += (double)1 / (1 + locToEvaluate.distanceSquaredTo(locLastSawEnemy));
+        } else {
+            value -= (double)1 / (1 + locToEvaluate.distanceSquaredTo(locLastSawEnemy));
+        }
+        return value;
+    }
+    static void moveAssumingDontHaveFlag(RobotController rc) throws GameActionException {
+        if(rc.getRoundNum() - roundLastSawEnemy < 5) {
+            double bestScore = 0;
+            Direction bestDir = null;
+            for(Direction d : MOVEMENT_DIRECTIONS) {
+                if(rc.canMove(d)) {
+                    final double score = evaluateLocationForCombat(rc, rc.adjacentLocation(d));
+                    if(bestDir == null || score > bestScore) {
+                        bestDir = d;
+                        bestScore = score;
+                    }
+                }
+            }
+            if(bestDir != null) {
+                rc.move(bestDir);
+            }
+        } else {
+            exploreMove(rc);
+        }
+    }
 
 
     static MapLocation exploreTarget = null;
