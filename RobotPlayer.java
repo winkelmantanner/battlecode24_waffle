@@ -43,10 +43,8 @@ public strictfp class RobotPlayer {
                 else{
                     updateRobotArrays(rc);
 
-                    if (rc.canPickupFlag(rc.getLocation())){
-                        rc.pickupFlag(rc.getLocation());
-                        rc.setIndicatorString("Holding a flag!");
-                    }
+                    pickupEnemyFlags(rc);
+                    
                     // If we are holding an enemy flag, singularly focus on moving towards
                     // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
                     // to make sure setup phase has ended.
@@ -172,6 +170,15 @@ public strictfp class RobotPlayer {
                 totalEnemyRobotY / nearbyEnemyRobotsLength
             );
             roundLastSawEnemy = rc.getRoundNum();
+        }
+    }
+
+
+    static void pickupEnemyFlags(RobotController rc) throws GameActionException {
+        for(FlagInfo fi : rc.senseNearbyFlags(-1, rc.getTeam().opponent())) {
+            if(rc.canPickupFlag(fi.getLocation())) {
+                rc.pickupFlag(fi.getLocation());
+            }
         }
     }
 
