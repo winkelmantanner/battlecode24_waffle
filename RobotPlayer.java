@@ -12,6 +12,8 @@ public strictfp class RobotPlayer {
 
     static final int ADJACENT_DISTANCE_SQUARED = 2;
 
+    static int roundNumAtStartOfIteration = 0;
+
     /** Array containing all the possible movement directions. */
     static final Direction[] MOVEMENT_DIRECTIONS = {
         Direction.NORTH,
@@ -32,6 +34,8 @@ public strictfp class RobotPlayer {
         while (true) {
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
+                roundNumAtStartOfIteration = rc.getRoundNum();
+
                 // Make sure you spawn your robot in before you attempt to take any actions!
                 // Robots not spawned in do not have vision of any tiles and cannot perform any actions.
                 if (!rc.isSpawned()){
@@ -74,6 +78,10 @@ public strictfp class RobotPlayer {
                     heal(rc);
 
                     doGlobalUpgrades(rc);
+                }
+
+                if(rc.getRoundNum() != roundNumAtStartOfIteration) {
+                    System.out.println("ROUND NUM INCREASED FROM " + roundNumAtStartOfIteration + " TO " + rc.getRoundNum());
                 }
 
             } catch (GameActionException e) {
