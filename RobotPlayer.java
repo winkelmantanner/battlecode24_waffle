@@ -72,6 +72,8 @@ public strictfp class RobotPlayer {
                     attack(rc);
 
                     heal(rc);
+
+                    doGlobalUpgrades(rc);
                 }
 
             } catch (GameActionException e) {
@@ -140,7 +142,18 @@ public strictfp class RobotPlayer {
         }
     }
 
-
+    final static GlobalUpgrade [] MY_ORDER = {
+        GlobalUpgrade.ACTION,
+        GlobalUpgrade.HEALING,
+        GlobalUpgrade.CAPTURING
+    };
+    static void doGlobalUpgrades(RobotController rc) throws GameActionException {
+        for(int k = 0; k < MY_ORDER.length; k++) {
+            if(rc.canBuyGlobal(MY_ORDER[k])) {
+                rc.buyGlobal(MY_ORDER[k]);
+            }
+        }
+    }
 
 
 
