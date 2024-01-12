@@ -403,7 +403,7 @@ public strictfp class RobotPlayer {
     static int broadcastLocationCount = 0;
     static int [][] broadcastLocationTotals = new int[GameConstants.NUMBER_FLAGS][2];
     static void manageEnemyFlagBroadcastData(RobotController rc) {
-        if(rc.getRoundNum() % GameConstants.FLAG_BROADCAST_UPDATE_INTERVAL == 2) {
+        if((rc.getRoundNum() - 2) / GameConstants.FLAG_BROADCAST_UPDATE_INTERVAL >= broadcastLocationCount) {
             MapLocation [] data = rc.senseBroadcastFlagLocations(); // This method returns an empty array sometimes and I don't know why
             if(data.length == broadcastLocationTotals.length) {
                 for(int k = 0; k < data.length; k++) {
