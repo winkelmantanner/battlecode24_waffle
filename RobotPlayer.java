@@ -156,7 +156,7 @@ public strictfp class RobotPlayer {
                     }
                     if(score >= ((double)1000) / rc.getCrumbs() && score > bestScore) {
                         boolean isAlreadyTrapNearby = false;
-                        for(MapInfo mi : rc.senseNearbyMapInfos(candidateLocation, 2*2)) {
+                        for(MapInfo mi : rc.senseNearbyMapInfos(candidateLocation, 3*3)) {
                             if(trapTypeToBuild.equals(mi.getTrapType())) {
                                 isAlreadyTrapNearby = true;
                                 break;
