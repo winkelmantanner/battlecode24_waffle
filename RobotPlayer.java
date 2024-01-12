@@ -164,7 +164,7 @@ public strictfp class RobotPlayer {
                     } else {
                         trapTypeToBuild = TrapType.EXPLOSIVE;
                     }
-                    if(rc.canBuild(TrapType.EXPLOSIVE, ml.getMapLocation())) {
+                    if(rc.canBuild(trapTypeToBuild, ml.getMapLocation())) {
                         rc.build(trapTypeToBuild, ml.getMapLocation());
                     }
                 }
