@@ -45,7 +45,7 @@ public strictfp class RobotPlayer {
                         rc.spawn(mySpawnLoc);
                     }
                 } else {
-                    updateRobotArrays(rc);
+                    updateData(rc);
                     manageEnemyFlagBroadcastData(rc);
 
                     pickupEnemyFlags(rc);
@@ -225,7 +225,7 @@ public strictfp class RobotPlayer {
     static int roundLastSawFriend = -12345;
     static FlagInfo[] sensedFlags = new FlagInfo[0];
     static FlagInfo nearestSensedEnemyFlag = null;
-    static void updateRobotArrays(RobotController rc) throws GameActionException {
+    static void updateData(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
         int totalEnemyRobotX = 0; int totalEnemyRobotY = 0;
