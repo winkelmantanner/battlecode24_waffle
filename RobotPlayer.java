@@ -341,7 +341,7 @@ public strictfp class RobotPlayer {
                     rc.move(bestDir);
                 }
             } else {
-                MapLocation target = getNearestApproximateEnemyFlagLocationMayBeNull(rc);
+                MapLocation target = getNearestNonEliminatedEnemyFlagLocationMayBeNull(rc);
                 if(target != null
                     && nearbyFriendlyRobotsLength >= 1
                 ) {
@@ -413,44 +413,93 @@ public strictfp class RobotPlayer {
         return bestSpawnLoc;
     }
 
-    static int broadcastLocationCount = 0;
-    static int [][] broadcastLocationTotals = new int[GameConstants.NUMBER_FLAGS][2];
+    // static int broadcastLocationCount = 0;
+    // static int [][] broadcastLocationTotals = new int[GameConstants.NUMBER_FLAGS][2];
+    static class MyBroadcastLocationData {boolean isEliminated = false;}
+    static Map<MapLocation, MyBroadcastLocationData> myBroadcastMap = new HashMap<>();
     static void manageEnemyFlagBroadcastData(RobotController rc) {
-        if((rc.getRoundNum() - 2) / GameConstants.FLAG_BROADCAST_UPDATE_INTERVAL >= broadcastLocationCount) {
-            MapLocation [] data = rc.senseBroadcastFlagLocations(); // This method returns an empty array sometimes and I don't know why
-            if(data.length == broadcastLocationTotals.length) {
-                for(int k = 0; k < data.length; k++) {
-                    broadcastLocationTotals[k][0] += data[k].x;
-                    broadcastLocationTotals[k][1] += data[k].y;
+        // if((rc.getRoundNum() - 2) / GameConstants.FLAG_BROADCAST_UPDATE_INTERVAL >= broadcastLocationCount) {
+        //     MapLocation [] data = rc.senseBroadcastFlagLocations(); // This method returns an empty array sometimes and I don't know why
+        //     if(data.length == broadcastLocationTotals.length) {
+        //         for(int k = 0; k < data.length; k++) {
+        //             broadcastLocationTotals[k][0] += data[k].x;
+        //             broadcastLocationTotals[k][1] += data[k].y;
+        //         }
+        //         broadcastLocationCount++;
+        //         rc.setIndicatorString("Updated broadcast data");
+        //     }
+
+        //     String s = "senseBroadcastFlagLocations";
+        //     for(MapLocation ml : data) {
+        //         s += (ml == null ? "NULL" : ml.toString());
+        //     }
+        //     rc.setIndicatorString(s);
+        // }
+
+        
+
+        MapLocation [] data = rc.senseBroadcastFlagLocations(); // This method is hard to use.  The length of the returned array is not fixed.
+        for(MapLocation ml : data) {
+            MyBroadcastLocationData el = myBroadcastMap.get(ml);
+            if(el == null) {
+                myBroadcastMap.put(ml, new MyBroadcastLocationData());
+            }
+        }
+
+        MapLocation nearestLoc = getNearestNonEliminatedEnemyFlagLocationMayBeNull(rc);
+        if(nearestLoc != null
+            && rc.getLocation().distanceSquaredTo(nearestLoc) <= 6
+        ) {
+            boolean canSenseEnemyFlag = false;
+            for(FlagInfo fi : sensedFlags) {
+                if(rc.getTeam().opponent().equals(fi.getTeam())) {
+                    canSenseEnemyFlag = true;
                 }
-                broadcastLocationCount++;
-                rc.setIndicatorString("Updated broadcast data");
+            }
+            if(!canSenseEnemyFlag) {
+                MyBroadcastLocationData el = myBroadcastMap.get(nearestLoc);
+                el.isEliminated = true;
+                myBroadcastMap.put(nearestLoc, el);
             }
         }
     }
-    static MapLocation[] getApproximateEnemyFlagLocationsMayBeEmpty(RobotController rc) {
-        if(broadcastLocationCount >= 1) {
-            MapLocation [] result = new MapLocation[broadcastLocationTotals.length];
-            for(int k = 0; k < broadcastLocationTotals.length; k++) {
-                result[k] = new MapLocation(
-                    broadcastLocationTotals[k][0] / broadcastLocationCount,
-                    broadcastLocationTotals[k][1] / broadcastLocationCount
-                );
+    // static MapLocation[] getApproximateEnemyFlagLocationsMayBeEmpty(RobotController rc) {
+    //     if(broadcastLocationCount >= 1) {
+    //         MapLocation [] result = new MapLocation[broadcastLocationTotals.length];
+    //         for(int k = 0; k < broadcastLocationTotals.length; k++) {
+    //             result[k] = new MapLocation(
+    //                 broadcastLocationTotals[k][0] / broadcastLocationCount,
+    //                 broadcastLocationTotals[k][1] / broadcastLocationCount
+    //             );
+    //         }
+    //         return result;
+    //     } else {
+    //         return new MapLocation[0];
+    //     }
+    // }
+    // static MapLocation getNearestApproximateEnemyFlagLocationMayBeNull(RobotController rc) {
+    //     int minDistSqd = 0; MapLocation bestLoc = null;
+    //     for(MapLocation ml : getApproximateEnemyFlagLocationsMayBeEmpty(rc)) {
+    //         final int dist = rc.getLocation().distanceSquaredTo(ml);
+    //         if(bestLoc == null || dist < minDistSqd) {
+    //             bestLoc = ml; minDistSqd = dist;
+    //         }
+    //     }
+    //     return bestLoc;
+    // }
+    static MapLocation getNearestNonEliminatedEnemyFlagLocationMayBeNull(RobotController rc) {
+        int minDistSqd = 12345;
+        MapLocation nearestLoc = null;
+        for(Map.Entry<MapLocation, MyBroadcastLocationData> e : myBroadcastMap.entrySet()) {
+            if(e.getValue().isEliminated == false) {
+                final int distSqd = rc.getLocation().distanceSquaredTo(e.getKey());
+                if(distSqd < minDistSqd) {
+                    nearestLoc = e.getKey();
+                    minDistSqd = distSqd;
+                }
             }
-            return result;
-        } else {
-            return new MapLocation[0];
         }
-    }
-    static MapLocation getNearestApproximateEnemyFlagLocationMayBeNull(RobotController rc) {
-        int minDistSqd = 0; MapLocation bestLoc = null;
-        for(MapLocation ml : getApproximateEnemyFlagLocationsMayBeEmpty(rc)) {
-            final int dist = rc.getLocation().distanceSquaredTo(ml);
-            if(bestLoc == null || dist < minDistSqd) {
-                bestLoc = ml; minDistSqd = dist;
-            }
-        }
-        return bestLoc;
+        return nearestLoc;
     }
 
 
