@@ -155,20 +155,17 @@ public strictfp class RobotPlayer {
                         score += (((double)1) / candidateLocation.distanceSquaredTo(nearbyEnemyRobots[k].location));
                     }
                     if(score >= ((double)1000) / rc.getCrumbs() && score > bestScore) {
-                        // boolean isAlreadyTrapNearby = false;
-                        // for(MapInfo mi : rc.senseNearbyMapInfos(candidateLocation, 2*2)) {
-                        //     if(trapTypeToBuild.equals(mi.getTrapType())) {
-                        //         isAlreadyTrapNearby = true;
-                        //         break;
-                        //     }
-                        // }
-
-                        // if(!isAlreadyTrapNearby) {
-                        //     rc.build(trapTypeToBuild, candidateLocation);
-                        // }
-
-                        bestDir = d;
-                        bestScore = score;
+                        boolean isAlreadyTrapNearby = false;
+                        for(MapInfo mi : rc.senseNearbyMapInfos(candidateLocation, 2*2)) {
+                            if(trapTypeToBuild.equals(mi.getTrapType())) {
+                                isAlreadyTrapNearby = true;
+                                break;
+                            }
+                        }
+                        if(!isAlreadyTrapNearby) {
+                            bestDir = d;
+                            bestScore = score;
+                        }
                     }
                 }
             }
