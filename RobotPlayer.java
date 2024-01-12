@@ -386,7 +386,6 @@ public strictfp class RobotPlayer {
             if(canMove.test(rc, dir)) {
                 rc.move(dir);
                 didMove = true;
-                rc.setIndicatorString("EXPLORE MOVE " + didMove + " " + dir.toString());
             } else {
                 break;
             }
