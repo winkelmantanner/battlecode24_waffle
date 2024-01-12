@@ -8,7 +8,7 @@ import java.util.Set;
 
 public strictfp class RobotPlayer {
 
-    static final Random rng = new Random(742236);
+    static Random rng;
 
     static final int ADJACENT_DISTANCE_SQUARED = 2;
 
@@ -29,6 +29,7 @@ public strictfp class RobotPlayer {
     };
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
+        rng = new Random(rc.getID());
 
         // You can also use indicators to save debug notes in replays.
         rc.setIndicatorString("Hello world!");
