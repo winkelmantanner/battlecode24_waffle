@@ -208,6 +208,7 @@ public strictfp class RobotPlayer {
     static int roundLastSawEnemy = -12345;
     static MapLocation locLastSawFriend = null;
     static int roundLastSawFriend = -12345;
+    static FlagInfo[] sensedFlags = new FlagInfo[0];
     static void updateRobotArrays(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
@@ -238,6 +239,7 @@ public strictfp class RobotPlayer {
             );
             roundLastSawFriend = rc.getRoundNum();
         }
+        sensedFlags = rc.senseNearbyFlags(-1);
     }
 
 
