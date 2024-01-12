@@ -46,6 +46,7 @@ public strictfp class RobotPlayer {
                     }
                 } else {
                     updateRobotArrays(rc);
+                    manageEnemyFlagBroadcastData(rc);
 
                     pickupEnemyFlags(rc);
                     
@@ -53,20 +54,7 @@ public strictfp class RobotPlayer {
                     // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
                     // to make sure setup phase has ended.
                     if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                        MapLocation bestSpawnLoc = null;
-                        for(int k = 0; k < spawnLocs.length; k++) {
-                            if(
-                                bestSpawnLoc == null
-                                || (
-                                    rc.getLocation().distanceSquaredTo(spawnLocs[k])
-                                    < rc.getLocation().distanceSquaredTo(bestSpawnLoc)
-                                )
-                            ) {
-                                bestSpawnLoc = spawnLocs[k];
-                            }
-                        }
-                        hybridMove(rc, bestSpawnLoc);
+                        hybridMove(rc, getNearestSpawnLoc(rc));
                     }
                     
                     attack(rc);
@@ -278,7 +266,62 @@ public strictfp class RobotPlayer {
     }
 
 
+    static MapLocation getNearestSpawnLoc(RobotController rc) throws GameActionException {
+        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+        MapLocation bestSpawnLoc = null;
+        for(int k = 0; k < spawnLocs.length; k++) {
+            if(
+                bestSpawnLoc == null
+                || (
+                    rc.getLocation().distanceSquaredTo(spawnLocs[k])
+                    < rc.getLocation().distanceSquaredTo(bestSpawnLoc)
+                )
+            ) {
+                bestSpawnLoc = spawnLocs[k];
+            }
+        }
+        return bestSpawnLoc;
+    }
 
+    static int broadcastLocationCount = 0;
+    static int [][] broadcastLocationTotals = new int[GameConstants.NUMBER_FLAGS][2];
+    static void manageEnemyFlagBroadcastData(RobotController rc) {
+        if(rc.getRoundNum() % GameConstants.FLAG_BROADCAST_UPDATE_INTERVAL == 2) {
+            MapLocation [] data = rc.senseBroadcastFlagLocations(); // This method returns an empty array sometimes and I don't know why
+            if(data.length == broadcastLocationTotals.length) {
+                for(int k = 0; k < data.length; k++) {
+                    broadcastLocationTotals[k][0] += data[k].x;
+                    broadcastLocationTotals[k][1] += data[k].y;
+                }
+                broadcastLocationCount++;
+                rc.setIndicatorString("Updated broadcast data");
+            }
+        }
+    }
+    static MapLocation[] getApproximateEnemyFlagLocationsMayBeEmpty(RobotController rc) {
+        if(broadcastLocationCount >= 1) {
+            MapLocation [] result = new MapLocation[broadcastLocationTotals.length];
+            for(int k = 0; k < broadcastLocationTotals.length; k++) {
+                result[k] = new MapLocation(
+                    broadcastLocationTotals[k][0] / broadcastLocationCount,
+                    broadcastLocationTotals[k][1] / broadcastLocationCount
+                );
+            }
+            return result;
+        } else {
+            return new MapLocation[0];
+        }
+    }
+    static MapLocation getNearestApproximateEnemyFlagLocationMayBeNull(RobotController rc) {
+        int minDistSqd = 0; MapLocation bestLoc = null;
+        for(MapLocation ml : getApproximateEnemyFlagLocationsMayBeEmpty(rc)) {
+            final int dist = rc.getLocation().distanceSquaredTo(ml);
+            if(bestLoc == null || dist < minDistSqd) {
+                bestLoc = ml; minDistSqd = dist;
+            }
+        }
+        return bestLoc;
+    }
 
 
     static interface CanMove {
