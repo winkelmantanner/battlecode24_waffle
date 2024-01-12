@@ -253,11 +253,11 @@ public strictfp class RobotPlayer {
     static double evaluateLocationForCombat(RobotController rc, MapLocation locToEvaluate) {
         double value = 0;
 
-        if(rc.isActionReady()) {
-            value += (double)1 / (1 + locToEvaluate.distanceSquaredTo(locLastSawEnemy));
-        } else {
-            value -= (double)1 / (1 + locToEvaluate.distanceSquaredTo(locLastSawEnemy));
-        }
+        double numerator = ((double)rc.getHealth() / GameConstants.DEFAULT_HEALTH)
+            - 0.7;
+        numerator += 0.5 * (rc.isActionReady() ? 1 : -1);
+        value += numerator / (1 + locToEvaluate.distanceSquaredTo(locLastSawEnemy));
+
         return value;
     }
     static void moveAssumingDontHaveFlag(RobotController rc) throws GameActionException {
