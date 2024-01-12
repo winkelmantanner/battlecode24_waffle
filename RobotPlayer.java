@@ -53,6 +53,7 @@ public strictfp class RobotPlayer {
                 } else {
                     updateData(rc);
                     manageEnemyFlagBroadcastData(rc);
+                    callForHelpIfEnemiesApproachFlag(rc);
 
                     pickupEnemyFlags(rc);
                     
@@ -225,15 +226,19 @@ public strictfp class RobotPlayer {
     static int nearbyFriendlyRobotsLength = 0;
     static RobotInfo [] nearbyEnemyRobots = new RobotInfo[4 * GameConstants.VISION_RADIUS_SQUARED];
     static int nearbyEnemyRobotsLength = 0;
+    static RobotInfo nearestEnemyRobot = null;
     static MapLocation locLastSawEnemy = null;
     static int roundLastSawEnemy = -12345;
     static MapLocation locLastSawFriend = null;
     static int roundLastSawFriend = -12345;
     static FlagInfo[] sensedFlags = new FlagInfo[0];
     static FlagInfo nearestSensedEnemyFlag = null;
+    static int callForAssistanceRoundNum = 0;
+    static MapLocation callForAssitanceLoc = null;
     static void updateData(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
+        nearestEnemyRobot = null; int minDistSqdToEnemy = 12345;
         int totalEnemyRobotX = 0; int totalEnemyRobotY = 0;
         int totalFriendlyRobotX = 0; int totalFriendlyRobotY = 0;
         for(RobotInfo robotInfo : rc.senseNearbyRobots(-1)) {
@@ -245,6 +250,10 @@ public strictfp class RobotPlayer {
                 nearbyEnemyRobots[nearbyEnemyRobotsLength] = robotInfo;
                 nearbyEnemyRobotsLength++;
                 totalEnemyRobotX += robotInfo.location.x; totalEnemyRobotY += robotInfo.location.y;
+                final int dist = rc.getLocation().distanceSquaredTo(robotInfo.getLocation());
+                if(dist < minDistSqdToEnemy) {
+                    nearestEnemyRobot = robotInfo; minDistSqdToEnemy = dist;
+                }
             }
         }
         if(nearbyEnemyRobotsLength >= 1) {
@@ -272,6 +281,14 @@ public strictfp class RobotPlayer {
                     nearestSensedEnemyFlag = fi;
                 }
             }
+        }
+
+        callForAssistanceRoundNum = rc.readSharedArray(CALL_FOR_ASSISTANCE_ROUND_INDEX);
+        if(callForAssistanceRoundNum != 0) {
+            callForAssitanceLoc = new MapLocation(
+                rc.readSharedArray(CALL_FOR_ASSISTANCE_X_INDEX),
+                rc.readSharedArray(CALL_FOR_ASSISTANCE_Y_INDEX)
+            );
         }
     }
 
@@ -301,6 +318,9 @@ public strictfp class RobotPlayer {
         // to make sure setup phase has ended.
         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
             hybridMove(rc, getNearestSpawnLoc(rc));
+            if(nearbyEnemyRobotsLength >= 2 || rc.getHealth() < 0.5 * GameConstants.DEFAULT_HEALTH) {
+                callForAssistance(rc, rc.getLocation());
+            }
         }
 
         boolean isOnFriendlyFlag = false;
@@ -349,6 +369,13 @@ public strictfp class RobotPlayer {
                 ) {
                     hybridMove(rc, target);
                 } else {
+                    if(callForAssitanceLoc != null
+                        && rc.getRoundNum() - callForAssistanceRoundNum < 30
+                        && rc.getLocation().distanceSquaredTo(callForAssitanceLoc) < 20*20
+                    ) {
+                        hybridMove(rc, callForAssitanceLoc);
+                    }
+
                     hybridMove(rc, lastSpawLocation);
                 }
             }
@@ -394,6 +421,15 @@ public strictfp class RobotPlayer {
         }
         lastTurnExploreMoveEndLoc = rc.getLocation();
         return didMove;
+    }
+
+    static final int CALL_FOR_ASSISTANCE_X_INDEX = 0;
+    static final int CALL_FOR_ASSISTANCE_Y_INDEX = 1;
+    static final int CALL_FOR_ASSISTANCE_ROUND_INDEX = 2;
+    static void callForAssistance(RobotController rc, MapLocation locToSend) throws GameActionException {
+        rc.writeSharedArray(CALL_FOR_ASSISTANCE_X_INDEX, locToSend.x);
+        rc.writeSharedArray(CALL_FOR_ASSISTANCE_Y_INDEX, locToSend.y);
+        rc.writeSharedArray(CALL_FOR_ASSISTANCE_ROUND_INDEX, rc.getRoundNum());
     }
 
 
@@ -503,6 +539,23 @@ public strictfp class RobotPlayer {
         return nearestLoc;
     }
 
+    static void callForHelpIfEnemiesApproachFlag(RobotController rc) throws GameActionException {
+        for(FlagInfo fi : sensedFlags) {
+            if(fi.isPickedUp()
+                && rc.getTeam().equals(fi.getTeam())
+                && rc.getRoundNum() > GameConstants.SETUP_ROUNDS
+            ) {
+                callForAssistance(rc, fi.getLocation());
+            }
+
+            if(rc.getLocation().equals(fi.getLocation())
+                && nearestEnemyRobot != null
+                && rc.getLocation().distanceSquaredTo(nearestEnemyRobot.getLocation()) <= 8
+            ) {
+                callForAssistance(rc, rc.getLocation());
+            }
+        }
+    }
 
     static interface CanMove {
         boolean test(RobotController rc, Direction d) throws GameActionException;
