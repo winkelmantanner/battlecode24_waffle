@@ -98,6 +98,14 @@ public strictfp class RobotPlayer {
         // Your code should never reach here (unless it's intentional)! Self-destruction imminent...
     }
 
+    static int roundLastAttacked = 0;
+    /**
+     * PRECONDITION: canAttack must have returned true for this locToAttack
+     */
+    static void attackAndUpdateMyVariables(RobotController rc, MapLocation locToAttack) throws GameActionException {
+        rc.attack(locToAttack);
+        roundLastAttacked = rc.getRoundNum();
+    }
     static void attack(RobotController rc) throws GameActionException {
         double minScore = 0;
         RobotInfo bestRbt = null;
@@ -115,7 +123,7 @@ public strictfp class RobotPlayer {
             }
         }
         if(bestRbt != null) {
-            rc.attack(bestRbt.location);
+            attackAndUpdateMyVariables(rc, bestRbt.location);
         }
     }
     static double getAttackTargetScoreToMinimize(RobotController rc, RobotInfo enemyRbt) {
@@ -123,20 +131,22 @@ public strictfp class RobotPlayer {
     }
 
     static void heal(RobotController rc) throws GameActionException {
-        int minHealth = 0;
-        RobotInfo bestRbt = null;
-        for(int friendlyRbtIdx = 0; friendlyRbtIdx < nearbyFriendlyRobotsLength; friendlyRbtIdx++) {
-            RobotInfo friendlyRbt = nearbyFriendlyRobots[friendlyRbtIdx];
-            if(
-                rc.canHeal(friendlyRbt.location)
-                && (bestRbt == null || friendlyRbt.health < minHealth)
-            ) {
-                bestRbt = friendlyRbt;
-                minHealth = friendlyRbt.health;
+        if(rc.getRoundNum() - roundLastAttacked >= 2) {
+            int minHealth = 0;
+            RobotInfo bestRbt = null;
+            for(int friendlyRbtIdx = 0; friendlyRbtIdx < nearbyFriendlyRobotsLength; friendlyRbtIdx++) {
+                RobotInfo friendlyRbt = nearbyFriendlyRobots[friendlyRbtIdx];
+                if(
+                    rc.canHeal(friendlyRbt.location)
+                    && (bestRbt == null || friendlyRbt.health < minHealth)
+                ) {
+                    bestRbt = friendlyRbt;
+                    minHealth = friendlyRbt.health;
+                }
             }
-        }
-        if(bestRbt != null) {
-            rc.heal(bestRbt.location);
+            if(bestRbt != null) {
+                rc.heal(bestRbt.location);
+            }
         }
     }
 
