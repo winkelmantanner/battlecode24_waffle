@@ -263,25 +263,38 @@ public strictfp class RobotPlayer {
             hybridMove(rc, getNearestSpawnLoc(rc));
         }
 
-        if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS - 20
-            && rc.getRoundNum() - roundLastSawEnemy < 5
-        ) {
-            double bestScore = 0;
-            Direction bestDir = null;
-            for(Direction d : MOVEMENT_DIRECTIONS) {
-                if(rc.canMove(d)) {
-                    final double score = evaluateLocationForCombat(rc, rc.adjacentLocation(d));
-                    if(bestDir == null || score > bestScore) {
-                        bestDir = d;
-                        bestScore = score;
-                    }
+        boolean isOnFriendlyFlag = false;
+        for(FlagInfo fi : sensedFlags) {
+            if(rc.getTeam().equals(fi.getTeam())) {
+                if(rc.getLocation().equals(fi.getLocation())) {
+                    isOnFriendlyFlag = true;
+                } else if(null == rc.senseRobotAtLocation(fi.getLocation())) {
+                    hybridMove(rc, fi.getLocation());
                 }
             }
-            if(bestDir != null) {
-                rc.move(bestDir);
+        }
+
+        if(!isOnFriendlyFlag) {
+            if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS - 20
+                && rc.getRoundNum() - roundLastSawEnemy < 5
+            ) {
+                double bestScore = 0;
+                Direction bestDir = null;
+                for(Direction d : MOVEMENT_DIRECTIONS) {
+                    if(rc.canMove(d)) {
+                        final double score = evaluateLocationForCombat(rc, rc.adjacentLocation(d));
+                        if(bestDir == null || score > bestScore) {
+                            bestDir = d;
+                            bestScore = score;
+                        }
+                    }
+                }
+                if(bestDir != null) {
+                    rc.move(bestDir);
+                }
+            } else {
+                exploreMove(rc);
             }
-        } else {
-            exploreMove(rc);
         }
     }
 
