@@ -14,6 +14,8 @@ public strictfp class RobotPlayer {
 
     static int roundNumAtStartOfIteration = 0;
 
+    static MapLocation lastSpawLocation = null;
+
     /** Array containing all the possible movement directions. */
     static final Direction[] MOVEMENT_DIRECTIONS = {
         Direction.NORTH,
@@ -43,6 +45,7 @@ public strictfp class RobotPlayer {
                     MapLocation mySpawnLoc = spawnLocs[rc.getID() % spawnLocs.length];
                     if (rc.canSpawn(mySpawnLoc)) {
                         rc.spawn(mySpawnLoc);
+                        lastSpawLocation = mySpawnLoc;
                     }
                 } else {
                     updateData(rc);
@@ -311,15 +314,17 @@ public strictfp class RobotPlayer {
         }
 
         if(!isOnFriendlyFlag) {
+            if(rc.getRoundNum() < GameConstants.SETUP_ROUNDS - 20) {
+                exploreMove(rc);
+            }
+
             if(nearestSensedEnemyFlag != null
                 && !nearestSensedEnemyFlag.isPickedUp()
             ) {
                 hybridMove(rc, nearestSensedEnemyFlag.getLocation());
             }
 
-            if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS - 20
-                && rc.getRoundNum() - roundLastSawEnemy < 5
-            ) {
+            if(nearbyEnemyRobotsLength >= 2) {
                 double bestScore = 0;
                 Direction bestDir = null;
                 for(Direction d : MOVEMENT_DIRECTIONS) {
@@ -335,7 +340,14 @@ public strictfp class RobotPlayer {
                     rc.move(bestDir);
                 }
             } else {
-                exploreMove(rc);
+                MapLocation target = getNearestApproximateEnemyFlagLocationMayBeNull(rc);
+                if(target != null
+                    && nearbyFriendlyRobotsLength >= 1
+                ) {
+                    hybridMove(rc, target);
+                } else {
+                    hybridMove(rc, lastSpawLocation);
+                }
             }
         }
     }
