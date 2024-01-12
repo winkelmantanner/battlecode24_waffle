@@ -224,6 +224,7 @@ public strictfp class RobotPlayer {
     static MapLocation locLastSawFriend = null;
     static int roundLastSawFriend = -12345;
     static FlagInfo[] sensedFlags = new FlagInfo[0];
+    static FlagInfo nearestSensedEnemyFlag = null;
     static void updateRobotArrays(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
@@ -255,6 +256,17 @@ public strictfp class RobotPlayer {
             roundLastSawFriend = rc.getRoundNum();
         }
         sensedFlags = rc.senseNearbyFlags(-1);
+        int minDistSqd = 12345;
+        nearestSensedEnemyFlag = null;
+        for(FlagInfo fi : sensedFlags) {
+            if(rc.getTeam().opponent().equals(fi.getTeam())) {
+                final int dist = rc.getLocation().distanceSquaredTo(fi.getLocation());
+                if(dist < minDistSqd) {
+                    minDistSqd = dist;
+                    nearestSensedEnemyFlag = fi;
+                }
+            }
+        }
     }
 
 
@@ -290,13 +302,21 @@ public strictfp class RobotPlayer {
             if(rc.getTeam().equals(fi.getTeam())) {
                 if(rc.getLocation().equals(fi.getLocation())) {
                     isOnFriendlyFlag = true;
-                } else if(null == rc.senseRobotAtLocation(fi.getLocation())) {
+                } else if(rc.canSenseLocation(fi.getLocation())
+                    && null == rc.senseRobotAtLocation(fi.getLocation())
+                ) {
                     hybridMove(rc, fi.getLocation());
                 }
             }
         }
 
         if(!isOnFriendlyFlag) {
+            if(nearestSensedEnemyFlag != null
+                && !nearestSensedEnemyFlag.isPickedUp()
+            ) {
+                hybridMove(rc, nearestSensedEnemyFlag.getLocation());
+            }
+
             if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS - 20
                 && rc.getRoundNum() - roundLastSawEnemy < 5
             ) {
