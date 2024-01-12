@@ -60,6 +60,8 @@ public strictfp class RobotPlayer {
                     attack(rc);
 
                     moveAssumingDontHaveFlag(rc);
+
+                    buildCombatTraps(rc);
                     
                     attack(rc);
 
@@ -135,6 +137,44 @@ public strictfp class RobotPlayer {
         }
         if(bestRbt != null) {
             rc.heal(bestRbt.location);
+        }
+    }
+
+    static void buildCombatTraps(RobotController rc) throws GameActionException {
+        final TrapType trapTypeToBuild = nearbyFriendlyRobotsLength >= 5 ? TrapType.STUN : TrapType.EXPLOSIVE;
+        if(nearbyEnemyRobotsLength >= 5) {
+            double bestScore = 0;
+            Direction bestDir = null;
+            for(Direction d : MOVEMENT_DIRECTIONS) {
+                MapLocation candidateLocation = rc.adjacentLocation(d);
+                if(rc.canBuild(trapTypeToBuild, candidateLocation)
+                    && rc.senseMapInfo(candidateLocation).isPassable()
+                ) {
+                    double score = 0;
+                    for(int k = 0; k < nearbyEnemyRobotsLength; k++) {
+                        score += (((double)1) / candidateLocation.distanceSquaredTo(nearbyEnemyRobots[k].location));
+                    }
+                    if(score >= ((double)1000) / rc.getCrumbs() && score > bestScore) {
+                        // boolean isAlreadyTrapNearby = false;
+                        // for(MapInfo mi : rc.senseNearbyMapInfos(candidateLocation, 2*2)) {
+                        //     if(trapTypeToBuild.equals(mi.getTrapType())) {
+                        //         isAlreadyTrapNearby = true;
+                        //         break;
+                        //     }
+                        // }
+
+                        // if(!isAlreadyTrapNearby) {
+                        //     rc.build(trapTypeToBuild, candidateLocation);
+                        // }
+
+                        bestDir = d;
+                        bestScore = score;
+                    }
+                }
+            }
+            if(bestDir != null) {
+                rc.build(trapTypeToBuild, rc.adjacentLocation(bestDir));
+            }
         }
     }
 
