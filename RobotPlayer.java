@@ -50,16 +50,9 @@ public strictfp class RobotPlayer {
 
                     pickupEnemyFlags(rc);
                     
-                    // If we are holding an enemy flag, singularly focus on moving towards
-                    // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
-                    // to make sure setup phase has ended.
-                    if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-                        hybridMove(rc, getNearestSpawnLoc(rc));
-                    }
-                    
                     attack(rc);
 
-                    moveAssumingDontHaveFlag(rc);
+                    move(rc);
 
                     buildCombatTraps(rc);
                     
@@ -262,7 +255,14 @@ public strictfp class RobotPlayer {
 
         return value;
     }
-    static void moveAssumingDontHaveFlag(RobotController rc) throws GameActionException {
+    static void move(RobotController rc) throws GameActionException {
+        // If we are holding an enemy flag, singularly focus on moving towards
+        // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
+        // to make sure setup phase has ended.
+        if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
+            hybridMove(rc, getNearestSpawnLoc(rc));
+        }
+
         if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS - 20
             && rc.getRoundNum() - roundLastSawEnemy < 5
         ) {
