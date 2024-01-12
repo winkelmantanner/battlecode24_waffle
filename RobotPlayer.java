@@ -54,6 +54,8 @@ public strictfp class RobotPlayer {
 
                     move(rc);
 
+                    buildDefensiveTraps(rc);
+
                     buildCombatTraps(rc);
                     
                     attack(rc);
@@ -139,6 +141,26 @@ public strictfp class RobotPlayer {
             }
             if(bestRbt != null) {
                 rc.heal(bestRbt.location);
+            }
+        }
+    }
+
+    static void buildDefensiveTraps(RobotController rc) throws GameActionException {
+        for(FlagInfo fi : sensedFlags) {
+            if(rc.getLocation().equals(fi.getLocation())
+                && rc.getTeam().equals(fi.getTeam())
+            ) {
+                for(MapInfo ml : rc.senseNearbyMapInfos(2)) {
+                    TrapType trapTypeToBuild;
+                    if(1 == rc.getLocation().distanceSquaredTo(ml.getMapLocation())) {
+                        trapTypeToBuild = TrapType.STUN;
+                    } else {
+                        trapTypeToBuild = TrapType.EXPLOSIVE;
+                    }
+                    if(rc.canBuild(TrapType.EXPLOSIVE, ml.getMapLocation())) {
+                        rc.build(trapTypeToBuild, ml.getMapLocation());
+                    }
+                }
             }
         }
     }
