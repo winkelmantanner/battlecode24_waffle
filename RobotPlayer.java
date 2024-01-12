@@ -206,14 +206,18 @@ public strictfp class RobotPlayer {
     static int nearbyEnemyRobotsLength = 0;
     static MapLocation locLastSawEnemy = null;
     static int roundLastSawEnemy = -12345;
+    static MapLocation locLastSawFriend = null;
+    static int roundLastSawFriend = -12345;
     static void updateRobotArrays(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
         int totalEnemyRobotX = 0; int totalEnemyRobotY = 0;
+        int totalFriendlyRobotX = 0; int totalFriendlyRobotY = 0;
         for(RobotInfo robotInfo : rc.senseNearbyRobots(-1)) {
             if(robotInfo.getTeam().equals(rc.getTeam())) {
                 nearbyFriendlyRobots[nearbyFriendlyRobotsLength] = robotInfo;
                 nearbyFriendlyRobotsLength++;
+                totalFriendlyRobotX += robotInfo.location.x; totalFriendlyRobotY += robotInfo.location.y;
             } else {
                 nearbyEnemyRobots[nearbyEnemyRobotsLength] = robotInfo;
                 nearbyEnemyRobotsLength++;
@@ -226,6 +230,13 @@ public strictfp class RobotPlayer {
                 totalEnemyRobotY / nearbyEnemyRobotsLength
             );
             roundLastSawEnemy = rc.getRoundNum();
+        }
+        if(nearbyFriendlyRobotsLength >= 1) {
+            locLastSawFriend = new MapLocation(
+                totalFriendlyRobotX / nearbyFriendlyRobotsLength,
+                totalFriendlyRobotY / nearbyFriendlyRobotsLength
+            );
+            roundLastSawFriend = rc.getRoundNum();
         }
     }
 
