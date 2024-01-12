@@ -2,7 +2,9 @@ package waffle;
 
 import battlecode.common.*;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
