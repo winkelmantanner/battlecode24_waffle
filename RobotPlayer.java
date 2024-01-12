@@ -250,7 +250,9 @@ public strictfp class RobotPlayer {
         return value;
     }
     static void moveAssumingDontHaveFlag(RobotController rc) throws GameActionException {
-        if(rc.getRoundNum() - roundLastSawEnemy < 5) {
+        if(rc.getRoundNum() >= GameConstants.SETUP_ROUNDS - 20
+            && rc.getRoundNum() - roundLastSawEnemy < 5
+        ) {
             double bestScore = 0;
             Direction bestDir = null;
             for(Direction d : MOVEMENT_DIRECTIONS) {
