@@ -341,6 +341,30 @@ public strictfp class RobotPlayer {
                 exploreMove(rc);
             }
 
+            // THIS MADE IT WORSE
+            // if(rc.getHealth() <= 0.5 * GameConstants.DEFAULT_HEALTH) {
+            //     double maxValue = 0;
+            //     Direction bestDir = null;
+            //     for(Direction d : MOVEMENT_DIRECTIONS) {
+            //         if(rc.canMove(d)) {
+            //             final MapLocation ml = rc.adjacentLocation(d);
+            //             double value = 0;
+            //             for(int k = 0; k < nearbyFriendlyRobotsLength; k++) {
+            //                 value += (double)1 / (ml.distanceSquaredTo(nearbyFriendlyRobots[k].location));
+            //             }
+            //             for(int k = 0; k < nearbyEnemyRobotsLength; k++) {
+            //                 value -= (double)1 / (ml.distanceSquaredTo(nearbyEnemyRobots[k].location));
+            //             }
+            //             if(bestDir == null || value > maxValue) {
+            //                 bestDir = d; maxValue = value;
+            //             }
+            //         }
+            //     }
+            //     if(bestDir != null) {
+            //         rc.move(bestDir);
+            //     }
+            // }
+
             if(nearestSensedEnemyFlag != null
                 && !nearestSensedEnemyFlag.isPickedUp()
             ) {
@@ -548,6 +572,7 @@ public strictfp class RobotPlayer {
                 callForAssistance(rc, fi.getLocation());
             }
 
+            // I tried removing this.  The difference was small, but it lost about 1 more match than it won, over many matches.
             if(rc.getLocation().equals(fi.getLocation())
                 && nearestEnemyRobot != null
                 && rc.getLocation().distanceSquaredTo(nearestEnemyRobot.getLocation()) <= 8
