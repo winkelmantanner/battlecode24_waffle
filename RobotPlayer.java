@@ -400,7 +400,7 @@ public strictfp class RobotPlayer {
                     hybridMove(rc, target);
                 } else {
                     if(callForAssitanceLoc != null
-                        && rc.getRoundNum() - callForAssistanceRoundNum < 30
+                        && rc.getRoundNum() - callForAssistanceRoundNum < CALL_FOR_ASSISTANCE_EXPIRATION
                         && rc.getLocation().distanceSquaredTo(callForAssitanceLoc) < 20*20
                     ) {
                         hybridMove(rc, callForAssitanceLoc);
@@ -453,6 +453,7 @@ public strictfp class RobotPlayer {
         return didMove;
     }
 
+    static final int CALL_FOR_ASSISTANCE_EXPIRATION = 10;
     static final int CALL_FOR_ASSISTANCE_X_INDEX = 0;
     static final int CALL_FOR_ASSISTANCE_Y_INDEX = 1;
     static final int CALL_FOR_ASSISTANCE_ROUND_INDEX = 2;
