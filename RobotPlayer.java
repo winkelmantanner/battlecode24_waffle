@@ -373,7 +373,10 @@ public strictfp class RobotPlayer {
                 hybridMove(rc, nearestSensedEnemyFlag.getLocation());
             }
 
-            if(nearbyEnemyRobotsLength >= 2) {
+            if(nearestEnemyRobot != null
+                && rc.getLocation().distanceSquaredTo(nearestEnemyRobot.location)
+                    <= 6 + GameConstants.ATTACK_RADIUS_SQUARED
+            ) {
                 double bestScore = 0;
                 Direction bestDir = null;
                 for(Direction d : MOVEMENT_DIRECTIONS) {
