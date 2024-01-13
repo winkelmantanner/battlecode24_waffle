@@ -308,7 +308,9 @@ public strictfp class RobotPlayer {
         double numerator = ((double)rc.getHealth() / GameConstants.DEFAULT_HEALTH)
             - 0.7;
         numerator += 0.5 * (rc.isActionReady() ? 1 : -1);
-        value += numerator / (1 + locToEvaluate.distanceSquaredTo(locLastSawEnemy));
+        value += numerator / (1 + locToEvaluate.distanceSquaredTo(
+            nearestEnemyRobot != null ? nearestEnemyRobot.location : locLastSawEnemy
+        ));
 
         return value;
     }
