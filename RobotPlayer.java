@@ -392,6 +392,7 @@ public strictfp class RobotPlayer {
                     rc.move(bestDir);
                 }
             } else {
+                // I tried making it go for whichever is nearer of target and callForAssitanceLoc, and it won 8, lost 13 against the previous version.  Note that I ignore rounds were the victory condition is level sum, or anything other than flags.
                 MapLocation target = getNearestNonEliminatedEnemyFlagLocationMayBeNull(rc);
                 if(target != null
                     && nearbyFriendlyRobotsLength >= 1
