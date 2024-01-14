@@ -525,14 +525,14 @@ public strictfp class RobotPlayer {
         MapLocation locToSend,
         CallForAssistanceType type
     ) throws GameActionException {
-        // if(rc.readSharedArray(CALL_FOR_ASSISTANCE_ROUND_INDEX) < rc.getRoundNum()
-        //     || rc.readSharedArray(CALL_FOR_ASSISTANCE_TYPE_INDEX) > type.value
-        // ) {
+        if(rc.readSharedArray(CALL_FOR_ASSISTANCE_ROUND_INDEX) < rc.getRoundNum()
+            || rc.readSharedArray(CALL_FOR_ASSISTANCE_TYPE_INDEX) > type.value
+        ) {
             rc.writeSharedArray(CALL_FOR_ASSISTANCE_X_INDEX, locToSend.x);
             rc.writeSharedArray(CALL_FOR_ASSISTANCE_Y_INDEX, locToSend.y);
             rc.writeSharedArray(CALL_FOR_ASSISTANCE_ROUND_INDEX, rc.getRoundNum());
             rc.writeSharedArray(CALL_FOR_ASSISTANCE_TYPE_INDEX, type.value);
-        // }
+        }
     }
 
 
