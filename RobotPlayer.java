@@ -69,6 +69,8 @@ public strictfp class RobotPlayer {
 
                     heal(rc);
 
+                    fill(rc);
+
                     doGlobalUpgrades(rc);
                 }
 
@@ -130,6 +132,36 @@ public strictfp class RobotPlayer {
     }
     static double getAttackTargetScoreToMinimize(RobotController rc, RobotInfo enemyRbt) {
         return enemyRbt.health + rc.getLocation().distanceSquaredTo(enemyRbt.location);
+    }
+
+    // I don't know how this would behave against other teams.  No one else does this.
+    // static void digAroundFlag(RobotController rc) throws GameActionException {
+    //     for(FlagInfo fi : sensedFlags) {
+    //         if(fi.getTeam().equals(rc.getTeam())
+    //             && !fi.isPickedUp()
+    //             && rc.canSenseLocation(fi.getLocation())
+    //             && rc.senseMapInfo(fi.getLocation()).isSpawnZone()
+    //         ) {
+    //             for(Direction d : MOVEMENT_DIRECTIONS) {
+    //                 final MapLocation ml = rc.adjacentLocation(d);
+    //                 final int dist = ml.distanceSquaredTo(fi.getLocation());
+    //                 if(dist == 5 || dist == 8) {
+    //                     if(rc.canDig(ml)) {
+    //                         rc.dig(ml);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    static void fill(RobotController rc) throws GameActionException {
+        if(rng.nextInt(100) < 5) {
+            final Direction d = MOVEMENT_DIRECTIONS[rng.nextInt(MOVEMENT_DIRECTIONS.length)];
+            if(rc.canFill(rc.adjacentLocation(d))) {
+                rc.fill(rc.adjacentLocation(d));
+            }
+        }
     }
 
     static void heal(RobotController rc) throws GameActionException {
