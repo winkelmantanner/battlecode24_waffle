@@ -343,7 +343,7 @@ public strictfp class RobotPlayer {
         // to make sure setup phase has ended.
         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
             hybridMove(rc, getNearestSpawnLoc(rc));
-            if(nearbyEnemyRobotsLength >= 2 || rc.getHealth() < 0.5 * GameConstants.DEFAULT_HEALTH) {
+            if(nearbyFriendlyRobotsLength <= nearbyEnemyRobotsLength) {
                 callForAssistance(rc, rc.getLocation(), CallForAssistanceType.HAVE_ENEMY_FLAG);
             }
         }
