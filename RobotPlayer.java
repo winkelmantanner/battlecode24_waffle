@@ -394,6 +394,7 @@ public strictfp class RobotPlayer {
                 && !nearestSensedEnemyFlag.isPickedUp()
             ) {
                 hybridMove(rc, nearestSensedEnemyFlag.getLocation());
+                rc.setIndicatorString("nearestSensedEnemyFlag move " + String.valueOf(nearestSensedEnemyFlag));
             }
 
             if(nearestEnemyRobot != null
@@ -413,6 +414,7 @@ public strictfp class RobotPlayer {
                 }
                 if(bestDir != null) {
                     rc.move(bestDir);
+                    rc.setIndicatorString("combatMove" + String.valueOf(bestDir));
                 }
             } else {
                 final boolean isCFALavailable = (
@@ -446,14 +448,17 @@ public strictfp class RobotPlayer {
                             //     (rcInner, d) -> lastSpawLocation.distanceSquaredTo(rcInner.adjacentLocation(d))
                             //         >= 3*3
                             // );
-                            rc.setIndicatorString("D" + lastSpawLocation.toString());
+                            rc.setIndicatorString("D" + lastSpawLocation.toString() + "callForAssitanceLoc" + String.valueOf(callForAssitanceLoc));
                         }
                     }
                 }
             }
         }
 
-        exploreMove(rc);
+        if(!isOnFriendlyFlag && rc.isMovementReady()) {
+            exploreMove(rc);
+            rc.setIndicatorString("exploreMove" + String.valueOf(exploreTarget));
+        }
     }
 
 
