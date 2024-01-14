@@ -615,9 +615,7 @@ public strictfp class RobotPlayer {
             }
 
             if(!isNearestBroadcastLocStillPossible) {
-                MyBroadcastLocationData el = myBroadcastMap.get(nearestBroadcastLoc);
-                el.isEliminated = true;
-                myBroadcastMap.put(nearestBroadcastLoc, el);
+                myBroadcastMap.remove(nearestBroadcastLoc);
             }
         }
     }
