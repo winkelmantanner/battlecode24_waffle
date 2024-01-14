@@ -254,6 +254,7 @@ public strictfp class RobotPlayer {
     static FlagInfo nearestSensedEnemyFlag = null;
     static int callForAssistanceRoundNum = 0;
     static MapLocation callForAssitanceLoc = null;
+    static CallForAssistanceType callForAssistanceType = null;
     static void updateData(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
@@ -308,6 +309,9 @@ public strictfp class RobotPlayer {
                 rc.readSharedArray(CALL_FOR_ASSISTANCE_X_INDEX),
                 rc.readSharedArray(CALL_FOR_ASSISTANCE_Y_INDEX)
             );
+            callForAssistanceType = CallForAssistanceType.valueOf(
+                rc.readSharedArray(CALL_FOR_ASSISTANCE_TYPE_INDEX)
+            );
         }
     }
 
@@ -340,7 +344,7 @@ public strictfp class RobotPlayer {
         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
             hybridMove(rc, getNearestSpawnLoc(rc));
             if(nearbyEnemyRobotsLength >= 2 || rc.getHealth() < 0.5 * GameConstants.DEFAULT_HEALTH) {
-                callForAssistance(rc, rc.getLocation());
+                callForAssistance(rc, rc.getLocation(), CallForAssistanceType.HAVE_ENEMY_FLAG);
             }
         }
 
@@ -357,10 +361,10 @@ public strictfp class RobotPlayer {
             }
         }
 
-        if(!isOnFriendlyFlag) {
-            if(rc.getRoundNum() < GameConstants.SETUP_ROUNDS - 20) {
-                exploreMove(rc);
-            }
+        if(!isOnFriendlyFlag
+            && rc.isMovementReady()
+            && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS - 20
+        ) {
 
             // THIS MADE IT WORSE
             // if(rc.getHealth() <= 0.5 * GameConstants.DEFAULT_HEALTH) {
@@ -411,24 +415,45 @@ public strictfp class RobotPlayer {
                     rc.move(bestDir);
                 }
             } else {
-                // I tried making it go for whichever is nearer of target and callForAssitanceLoc, and it won 8, lost 13 against the previous version.  Note that I ignore rounds were the victory condition is level sum, or anything other than flags.
-                MapLocation target = nearestBroadcastLoc;
-                if(target != null
-                    && nearbyFriendlyRobotsLength >= 1
+                final boolean isCFALavailable = (
+                    callForAssitanceLoc != null
+                    && rc.getRoundNum() - callForAssistanceRoundNum < CALL_FOR_ASSISTANCE_EXPIRATION
+                    && rc.getLocation().distanceSquaredTo(callForAssitanceLoc) < 20*20
+                );
+                if(isCFALavailable
+                    && CallForAssistanceType.HAVE_ENEMY_FLAG.equals(callForAssistanceType)
                 ) {
-                    hybridMove(rc, target);
+                    hybridMove(rc, callForAssitanceLoc);
+                    rc.setIndicatorString("A" + callForAssitanceLoc.toString() + callForAssistanceRoundNum);
                 } else {
-                    if(callForAssitanceLoc != null
-                        && rc.getRoundNum() - callForAssistanceRoundNum < CALL_FOR_ASSISTANCE_EXPIRATION
-                        && rc.getLocation().distanceSquaredTo(callForAssitanceLoc) < 20*20
+                    // I tried making it go for whichever is nearer of target and callForAssitanceLoc, and it won 8, lost 13 against the previous version.  Note that I ignore rounds were the victory condition is level sum, or anything other than flags.
+                    MapLocation target = nearestBroadcastLoc;
+                    if(target != null
+                        && nearbyFriendlyRobotsLength >= 1
                     ) {
-                        hybridMove(rc, callForAssitanceLoc);
-                    }
+                        hybridMove(rc, target);
+                        rc.setIndicatorString("B" + target.toString());
+                    } else {
+                        if(isCFALavailable) {
+                            hybridMove(rc, callForAssitanceLoc);
+                            rc.setIndicatorString("C" + callForAssitanceLoc.toString() + callForAssistanceRoundNum);
+                        } else {
+                            hybridMove(rc, lastSpawLocation);
 
-                    hybridMove(rc, lastSpawLocation);
+                            // hybridMove(
+                            //     rc,
+                            //     lastSpawLocation,
+                            //     (rcInner, d) -> lastSpawLocation.distanceSquaredTo(rcInner.adjacentLocation(d))
+                            //         >= 3*3
+                            // );
+                            rc.setIndicatorString("D" + lastSpawLocation.toString());
+                        }
+                    }
                 }
             }
         }
+
+        exploreMove(rc);
     }
 
 
@@ -473,13 +498,41 @@ public strictfp class RobotPlayer {
     }
 
     static final int CALL_FOR_ASSISTANCE_EXPIRATION = 10;
+    static enum CallForAssistanceType {
+        // LOWER VALUE TYPES TAKE PRIORITY OVER HIGHER VALUE TYPES
+        HAVE_ENEMY_FLAG(1),
+        ENEMY_HAS_OUR_FLAG(2),
+        ENEMY_NEAR_OUR_FLAG(3);
+        int value;
+        CallForAssistanceType(int value) {
+            this.value = value;
+        }
+        static CallForAssistanceType valueOf(int value) {
+            for(CallForAssistanceType t : CallForAssistanceType.values()) {
+                if(t.value == value) {
+                    return t;
+                }
+            }
+            return null;
+        }
+    };
     static final int CALL_FOR_ASSISTANCE_X_INDEX = 0;
     static final int CALL_FOR_ASSISTANCE_Y_INDEX = 1;
     static final int CALL_FOR_ASSISTANCE_ROUND_INDEX = 2;
-    static void callForAssistance(RobotController rc, MapLocation locToSend) throws GameActionException {
-        rc.writeSharedArray(CALL_FOR_ASSISTANCE_X_INDEX, locToSend.x);
-        rc.writeSharedArray(CALL_FOR_ASSISTANCE_Y_INDEX, locToSend.y);
-        rc.writeSharedArray(CALL_FOR_ASSISTANCE_ROUND_INDEX, rc.getRoundNum());
+    static final int CALL_FOR_ASSISTANCE_TYPE_INDEX = 3;
+    static void callForAssistance(
+        RobotController rc,
+        MapLocation locToSend,
+        CallForAssistanceType type
+    ) throws GameActionException {
+        // if(rc.readSharedArray(CALL_FOR_ASSISTANCE_ROUND_INDEX) < rc.getRoundNum()
+        //     || rc.readSharedArray(CALL_FOR_ASSISTANCE_TYPE_INDEX) > type.value
+        // ) {
+            rc.writeSharedArray(CALL_FOR_ASSISTANCE_X_INDEX, locToSend.x);
+            rc.writeSharedArray(CALL_FOR_ASSISTANCE_Y_INDEX, locToSend.y);
+            rc.writeSharedArray(CALL_FOR_ASSISTANCE_ROUND_INDEX, rc.getRoundNum());
+            rc.writeSharedArray(CALL_FOR_ASSISTANCE_TYPE_INDEX, type.value);
+        // }
     }
 
 
@@ -570,7 +623,7 @@ public strictfp class RobotPlayer {
                 && rc.getTeam().equals(fi.getTeam())
                 && rc.getRoundNum() > GameConstants.SETUP_ROUNDS
             ) {
-                callForAssistance(rc, fi.getLocation());
+                callForAssistance(rc, fi.getLocation(), CallForAssistanceType.ENEMY_HAS_OUR_FLAG);
             }
 
             // I tried removing this.  The difference was small, but it lost about 1 more match than it won, over many matches.
@@ -578,7 +631,7 @@ public strictfp class RobotPlayer {
                 && nearestEnemyRobot != null
                 && rc.getLocation().distanceSquaredTo(nearestEnemyRobot.getLocation()) <= 8
             ) {
-                callForAssistance(rc, rc.getLocation());
+                callForAssistance(rc, rc.getLocation(), CallForAssistanceType.ENEMY_NEAR_OUR_FLAG);
             }
         }
     }
