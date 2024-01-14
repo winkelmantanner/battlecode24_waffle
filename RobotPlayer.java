@@ -668,6 +668,9 @@ public strictfp class RobotPlayer {
     static int dot(Direction d1, Direction d2) {
         return (d1.dx*d2.dx) + (d1.dy*d2.dy);
     }
+    static int dot(MapLocation start1, MapLocation end1, MapLocation start2, MapLocation end2) {
+        return (end1.x - start1.x)*(end2.x - start2.x) + (end1.y - start1.y)*(end2.y - start2.y);
+    }
     static boolean bugCanMove(RobotController rc, Direction d, CanMove canMove) throws GameActionException {
         return canMove.test(rc, d);
     }
