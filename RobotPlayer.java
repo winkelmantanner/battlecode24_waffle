@@ -221,6 +221,7 @@ public strictfp class RobotPlayer {
                     for(int k = 0; k < nearbyEnemyRobotsLength; k++) {
                         score += (((double)1) / candidateLocation.distanceSquaredTo(nearbyEnemyRobots[k].location));
                     }
+                    score *= Math.pow(1.2, nearbyEnemyRobotsLength - nearbyFriendlyRobotsLength);
                     if(score >= ((double)1000) / rc.getCrumbs() && score > bestScore) {
                         boolean isAlreadyTrapNearby = false;
                         for(MapInfo mi : rc.senseNearbyMapInfos(candidateLocation, 3*3)) {
