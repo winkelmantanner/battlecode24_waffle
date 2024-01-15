@@ -385,6 +385,8 @@ public strictfp class RobotPlayer {
 
 
     static double evaluateLocationForCombat(RobotController rc, MapLocation locToEvaluate) {
+        double value = 0;
+
         int numEnemiesThatCanReachThisLoc = 0;
         for(int k = 0; k < nearbyEnemyRobotsLength; k++) {
             if(nearbyEnemyRobots[k].location.distanceSquaredTo(locToEvaluate) <= GameConstants.ATTACK_RADIUS_SQUARED) {
@@ -392,20 +394,25 @@ public strictfp class RobotPlayer {
             }
         }
 
-        double numerator = 0;
+        final int distFromLocToEvaluateToNearestEnemy = locToEvaluate.distanceSquaredTo(
+            nearestEnemyRobot != null ? nearestEnemyRobot.location : locLastSawEnemy
+        );
+
         if(numEnemiesThatCanReachThisLoc == 1
             && rc.isActionReady()
         ) {
-            numerator += 1;
-        } else if(!rc.isActionReady()) {
-            numerator -= numEnemiesThatCanReachThisLoc;
+            value += 20;
+        }
+        
+        if(!rc.isActionReady()
+            || rc.getHealth() <= TrapType.EXPLOSIVE.enterDamage
+        ) {
+            value += distFromLocToEvaluateToNearestEnemy;
         } else {
-            numerator += (double)(rc.getHealth() - TrapType.EXPLOSIVE.enterDamage) / GameConstants.DEFAULT_HEALTH;
+            value += (double)20 / distFromLocToEvaluateToNearestEnemy;
         }
 
-        return numerator / (1 + locToEvaluate.distanceSquaredTo(
-            nearestEnemyRobot != null ? nearestEnemyRobot.location : locLastSawEnemy
-        ));
+        return value;
     }
     static void move(RobotController rc) throws GameActionException {
         // If we are holding an enemy flag, singularly focus on moving towards
