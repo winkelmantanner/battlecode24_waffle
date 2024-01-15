@@ -56,13 +56,20 @@ public strictfp class RobotPlayer {
                 // Make sure you spawn your robot in before you attempt to take any actions!
                 // Robots not spawned in do not have vision of any tiles and cannot perform any actions.
                 if (!rc.isSpawned()){
-                    MapLocation[] spawnLocs = rc.getAllySpawnLocations();
-                    MapLocation locToTry = spawnLocs[rng.nextInt(spawnLocs.length)];
+                    MapLocation locToTry = null;
+                    if(lastSpawLocation != null && rc.canSpawn(lastSpawLocation)) {
+                        locToTry = lastSpawLocation;
+                    } else {
+                        MapLocation[] spawnLocs = rc.getAllySpawnLocations();
+                        locToTry = spawnLocs[rng.nextInt(spawnLocs.length)];
+                    }
                     if (rc.canSpawn(locToTry)) {
                         rc.spawn(locToTry);
-                        lastSpawLocation = locToTry;
-                        daMap = new HashMap<>();
-                        daMap.put(lastSpawLocation, new PathingData(){{numSteps=0; stepDir=Direction.CENTER;}});
+                        if(lastSpawLocation == null || !locToTry.equals(lastSpawLocation)) {
+                            lastSpawLocation = locToTry;
+                            daMap = new HashMap<>();
+                            daMap.put(lastSpawLocation, new PathingData(){{numSteps=0; stepDir=Direction.CENTER;}});
+                        }
                     }
                 } else {
                     updateData(rc);
