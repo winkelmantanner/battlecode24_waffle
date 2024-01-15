@@ -64,6 +64,8 @@ public strictfp class RobotPlayer {
                     move(rc);
 
                     buildCombatTraps(rc);
+
+                    pickupEnemyFlags(rc);
                     
                     attack(rc);
 
