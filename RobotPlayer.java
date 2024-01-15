@@ -14,9 +14,21 @@ public strictfp class RobotPlayer {
 
     static final int ADJACENT_DISTANCE_SQUARED = 2;
 
+    static final int MY_INF = 12345; // larger than maximum number of MapLocations on the map
+
     static int roundNumAtStartOfIteration = 0;
 
     static MapLocation lastSpawLocation = null;
+
+    static class PathingData {
+        Direction stepDir;
+        int numSteps;
+        PathingData() {
+            stepDir = null;
+            numSteps = MY_INF;
+        }
+    }
+    static Map<MapLocation, PathingData> daMap = new HashMap<>();
 
     /** Array containing all the possible movement directions. */
     static final Direction[] MOVEMENT_DIRECTIONS = {
@@ -49,6 +61,8 @@ public strictfp class RobotPlayer {
                     if (rc.canSpawn(locToTry)) {
                         rc.spawn(locToTry);
                         lastSpawLocation = locToTry;
+                        daMap = new HashMap<>();
+                        daMap.put(lastSpawLocation, new PathingData(){{numSteps=0; stepDir=Direction.CENTER;}});
                     }
                 } else {
                     updateData(rc);
@@ -74,6 +88,8 @@ public strictfp class RobotPlayer {
                     fill(rc);
 
                     doGlobalUpgrades(rc);
+
+                    updatePathingData(rc);
                 }
 
                 if(rc.getRoundNum() != roundNumAtStartOfIteration) {
@@ -283,9 +299,9 @@ public strictfp class RobotPlayer {
     static int nearbyEnemyRobotsLength = 0;
     static RobotInfo nearestEnemyRobot = null;
     static MapLocation locLastSawEnemy = null;
-    static int roundLastSawEnemy = -12345;
+    static int roundLastSawEnemy = -MY_INF;
     static MapLocation locLastSawFriend = null;
-    static int roundLastSawFriend = -12345;
+    static int roundLastSawFriend = -MY_INF;
     static FlagInfo[] sensedFlags = new FlagInfo[0];
     static FlagInfo nearestSensedEnemyFlag = null;
     static int callForAssistanceRoundNum = 0;
@@ -294,7 +310,7 @@ public strictfp class RobotPlayer {
     static void updateData(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
-        nearestEnemyRobot = null; int minDistSqdToEnemy = 12345;
+        nearestEnemyRobot = null; int minDistSqdToEnemy = MY_INF;
         int totalEnemyRobotX = 0; int totalEnemyRobotY = 0;
         int totalFriendlyRobotX = 0; int totalFriendlyRobotY = 0;
         for(RobotInfo robotInfo : rc.senseNearbyRobots(-1)) {
@@ -327,7 +343,7 @@ public strictfp class RobotPlayer {
             roundLastSawFriend = rc.getRoundNum();
         }
         sensedFlags = rc.senseNearbyFlags(-1);
-        int minDistSqd = 12345;
+        int minDistSqd = MY_INF;
         nearestSensedEnemyFlag = null;
         for(FlagInfo fi : sensedFlags) {
             if(rc.getTeam().opponent().equals(fi.getTeam())) {
@@ -378,7 +394,7 @@ public strictfp class RobotPlayer {
         // an ally spawn zone to capture it! We use the check roundNum >= SETUP_ROUNDS
         // to make sure setup phase has ended.
         if (rc.hasFlag() && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS){
-            hybridMove(rc, getNearestSpawnLoc(rc));
+            moveTowardSpawnLocUsingDaMap(rc);
             if(nearbyFriendlyRobotsLength <= nearbyEnemyRobotsLength) {
                 callForAssistance(rc, rc.getLocation(), CallForAssistanceType.HAVE_ENEMY_FLAG);
             }
@@ -615,7 +631,7 @@ public strictfp class RobotPlayer {
         }
 
         nearestBroadcastLoc = null;
-        int minDistSqd = 12345;
+        int minDistSqd = MY_INF;
         for(Map.Entry<MapLocation, MyBroadcastLocationData> e : myBroadcastMap.entrySet()) {
             if(e.getValue().isEliminated == false) {
                 final int distSqd = rc.getLocation().distanceSquaredTo(e.getKey());
@@ -732,7 +748,7 @@ public strictfp class RobotPlayer {
             ) {
                 isStuck = true;
                 if(HybridStatus.FUZZY.equals(hybridStatus)) {
-                    int bestDist = 12345;
+                    int bestDist = MY_INF;
                     Direction bestDir = null;
                     for(Direction d : MOVEMENT_DIRECTIONS) {
                         final MapLocation neighbor = rc.adjacentLocation(d);
@@ -798,6 +814,51 @@ public strictfp class RobotPlayer {
 
             hybridMoveLastCallEndLoc = rc.getLocation();
             hybridMoveLastCallDest = dest;
+        }
+    }
+
+
+    static void updatePathingData(RobotController rc) throws GameActionException {
+        PathingData myLocPd = daMap.get(rc.getLocation());
+        if(myLocPd == null) {
+            myLocPd = new PathingData(){{numSteps=MY_INF; stepDir=null;}};
+        }
+        for(Direction d : MOVEMENT_DIRECTIONS) {
+            final PathingData pd = daMap.get(rc.adjacentLocation(d));
+            if(pd != null && pd.numSteps < myLocPd.numSteps) {
+                myLocPd.stepDir = d;
+                myLocPd.numSteps = 1 + pd.numSteps;
+            }
+        }
+        daMap.put(rc.getLocation(), myLocPd);
+    }
+
+    static void moveTowardSpawnLocUsingDaMap(RobotController rc) throws GameActionException {
+        if(rc.isMovementReady()) {
+            int minNumSteps = MY_INF;
+            Direction bestDir = null;
+            PathingData bestPd = null;
+            for(Direction d : MOVEMENT_DIRECTIONS) {
+                final MapLocation ml = rc.adjacentLocation(d);
+                final PathingData pd = daMap.get(ml);
+                if(pd != null && pd.numSteps < minNumSteps) {
+                    minNumSteps = pd.numSteps;
+                    bestDir = d;
+                    bestPd = pd;
+                }
+            }
+            if(bestDir != null) {
+                if(rc.canMove(bestDir)) {
+                    rc.move(bestDir);
+                } else {
+                    // A robot or water is blocking the path!
+                    final MapLocation oneStepForward = rc.adjacentLocation(bestDir);
+                    final MapLocation twoStepsForward = oneStepForward.add(bestPd.stepDir);
+                    hybridMove(rc, twoStepsForward);
+                }
+            } else {
+                System.out.println("NOT EXPECTED TO EVER OCCUR");
+            }
         }
     }
 
