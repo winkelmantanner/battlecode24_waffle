@@ -52,6 +52,7 @@ public strictfp class RobotPlayer {
             // Try/catch blocks stop unhandled exceptions, which cause your robot to explode.
             try {
                 roundNumAtStartOfIteration = rc.getRoundNum();
+                bytecodeLoggingString = "";
 
                 // Make sure you spawn your robot in before you attempt to take any actions!
                 // Robots not spawned in do not have vision of any tiles and cannot perform any actions.
@@ -126,6 +127,12 @@ public strictfp class RobotPlayer {
         }
 
         // Your code should never reach here (unless it's intentional)! Self-destruction imminent...
+    }
+
+    static String bytecodeLoggingString = "";
+    static void doBytecodeLogging(RobotController rc, String x) {
+        bytecodeLoggingString += ":" + x + Clock.getBytecodeNum();
+        rc.setIndicatorString(bytecodeLoggingString);
     }
 
     static int roundLastAttacked = 0;
