@@ -28,7 +28,7 @@ public strictfp class RobotPlayer {
             numSteps = MY_INF;
         }
     }
-    static Map<MapLocation, PathingData> daMap = new HashMap<>();
+    static PathingData[][] daMap = null;
 
     /** Array containing all the possible movement directions. */
     static final Direction[] MOVEMENT_DIRECTIONS = {
@@ -67,8 +67,9 @@ public strictfp class RobotPlayer {
                         rc.spawn(locToTry);
                         if(lastSpawLocation == null || !locToTry.equals(lastSpawLocation)) {
                             lastSpawLocation = locToTry;
-                            daMap = new HashMap<>();
-                            daMap.put(lastSpawLocation, new PathingData(){{numSteps=0; stepDir=Direction.CENTER;}});
+                            daMap = new PathingData[rc.getMapWidth()][rc.getMapHeight()];
+                            daMap[lastSpawLocation.x][lastSpawLocation.y] =
+                                new PathingData(){{numSteps=0; stepDir=Direction.CENTER;}};
                         }
                     }
                 } else {
@@ -837,18 +838,22 @@ public strictfp class RobotPlayer {
 
 
     static void updatePathingData(RobotController rc) throws GameActionException {
-        PathingData myLocPd = daMap.get(rc.getLocation());
+        final MapLocation myLoc = rc.getLocation();
+        PathingData myLocPd = daMap[myLoc.x][myLoc.y];
         if(myLocPd == null) {
             myLocPd = new PathingData(){{numSteps=MY_INF; stepDir=null;}};
         }
         for(Direction d : MOVEMENT_DIRECTIONS) {
-            final PathingData pd = daMap.get(rc.adjacentLocation(d));
-            if(pd != null && pd.numSteps < myLocPd.numSteps) {
-                myLocPd.stepDir = d;
-                myLocPd.numSteps = 1 + pd.numSteps;
+            final MapLocation adjLoc = rc.adjacentLocation(d);
+            if(rc.onTheMap(adjLoc)) {
+                final PathingData pd = daMap[adjLoc.x][adjLoc.y];
+                if(pd != null && pd.numSteps < myLocPd.numSteps) {
+                    myLocPd.stepDir = d;
+                    myLocPd.numSteps = 1 + pd.numSteps;
+                }
             }
         }
-        daMap.put(rc.getLocation(), myLocPd);
+        daMap[myLoc.x][myLoc.y] = myLocPd;
     }
 
     static void moveTowardSpawnLocUsingDaMap(RobotController rc) throws GameActionException {
@@ -858,11 +863,13 @@ public strictfp class RobotPlayer {
             PathingData bestPd = null;
             for(Direction d : MOVEMENT_DIRECTIONS) {
                 final MapLocation ml = rc.adjacentLocation(d);
-                final PathingData pd = daMap.get(ml);
-                if(pd != null && pd.numSteps < minNumSteps) {
-                    minNumSteps = pd.numSteps;
-                    bestDir = d;
-                    bestPd = pd;
+                if(rc.onTheMap(ml)) {
+                    final PathingData pd = daMap[ml.x][ml.y];
+                    if(pd != null && pd.numSteps < minNumSteps) {
+                        minNumSteps = pd.numSteps;
+                        bestDir = d;
+                        bestPd = pd;
+                    }
                 }
             }
             if(bestDir != null) {
