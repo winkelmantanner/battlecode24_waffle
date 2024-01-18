@@ -288,26 +288,6 @@ public strictfp class RobotPlayer {
         }
     }
 
-    // TURNS OUT YOU DON'T GAIN EXPERIENCE FROM FILLING AND DIGGING!  SO THIS IS POINTLESS!
-    // static void gainExperience(RobotController rc) throws GameActionException {
-    //     if(GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - rc.getRoundNum() < 0.1 * rc.getCrumbs()) {
-    //         for(int k = 0; k < 10; k++) {
-    //             Direction d = MOVEMENT_DIRECTIONS[rng.nextInt(MOVEMENT_DIRECTIONS.length)];
-    //             if(rc.canFill(rc.adjacentLocation(d))) {
-    //                 rc.fill(rc.adjacentLocation(d));
-    //             }
-    //         }
-    //     }
-    //     if(GameConstants.GAME_MAX_NUMBER_OF_ROUNDS - rc.getRoundNum() < 0.01 * rc.getCrumbs()) {
-    //         for(int k = 0; k < 10; k++) {
-    //             Direction d = MOVEMENT_DIRECTIONS[rng.nextInt(MOVEMENT_DIRECTIONS.length)];
-    //             if(rc.canDig(rc.adjacentLocation(d))) {
-    //                 rc.dig(rc.adjacentLocation(d));
-    //             }
-    //         }
-    //     }
-    // }
-
     static RobotInfo [] nearbyFriendlyRobots = new RobotInfo[4 * GameConstants.VISION_RADIUS_SQUARED];
     static int nearbyFriendlyRobotsLength = 0;
     static RobotInfo [] nearbyEnemyRobots = new RobotInfo[4 * GameConstants.VISION_RADIUS_SQUARED];
