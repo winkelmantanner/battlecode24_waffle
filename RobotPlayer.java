@@ -276,7 +276,7 @@ public strictfp class RobotPlayer {
     }
 
     final static GlobalUpgrade [] MY_ORDER = {
-        GlobalUpgrade.ACTION,
+        GlobalUpgrade.ATTACK,
         GlobalUpgrade.HEALING,
         GlobalUpgrade.CAPTURING
     };
