@@ -316,6 +316,7 @@ public strictfp class RobotPlayer {
     static RobotInfo [] nearbyEnemyRobots = new RobotInfo[4 * GameConstants.VISION_RADIUS_SQUARED];
     static int nearbyEnemyRobotsLength = 0;
     static RobotInfo nearestEnemyRobot = null;
+    static RobotInfo nearestFriendlyRobot = null;
     static MapLocation locLastSawEnemy = null;
     static int roundLastSawEnemy = -MY_INF;
     static MapLocation locLastSawFriend = null;
@@ -330,6 +331,7 @@ public strictfp class RobotPlayer {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
         nearestEnemyRobot = null; int minDistSqdToEnemy = MY_INF;
+        nearestFriendlyRobot = null; int minDistSqdToFriend = MY_INF;
         int totalEnemyRobotX = 0; int totalEnemyRobotY = 0;
         int totalFriendlyRobotX = 0; int totalFriendlyRobotY = 0;
         for(RobotInfo robotInfo : rc.senseNearbyRobots(-1)) {
@@ -337,6 +339,10 @@ public strictfp class RobotPlayer {
                 nearbyFriendlyRobots[nearbyFriendlyRobotsLength] = robotInfo;
                 nearbyFriendlyRobotsLength++;
                 totalFriendlyRobotX += robotInfo.location.x; totalFriendlyRobotY += robotInfo.location.y;
+                final int dist = rc.getLocation().distanceSquaredTo(robotInfo.getLocation());
+                if(dist < minDistSqdToFriend) {
+                    nearestFriendlyRobot = robotInfo; minDistSqdToFriend = dist;
+                }
             } else {
                 nearbyEnemyRobots[nearbyEnemyRobotsLength] = robotInfo;
                 nearbyEnemyRobotsLength++;
