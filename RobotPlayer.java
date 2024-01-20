@@ -103,6 +103,8 @@ public strictfp class RobotPlayer {
                     callForHelpIfEnemiesApproachFlag(rc);
 
                     pickupEnemyFlags(rc);
+
+                    fill(rc);
                     
                     buildDefensiveTraps(rc);
 
@@ -117,8 +119,6 @@ public strictfp class RobotPlayer {
                     attack(rc);
 
                     heal(rc);
-
-                    fill(rc);
 
                     doGlobalUpgrades(rc);
 
