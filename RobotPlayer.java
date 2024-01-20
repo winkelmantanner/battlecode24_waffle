@@ -16,6 +16,8 @@ public strictfp class RobotPlayer {
 
     static final int MY_INF = 12345; // larger than maximum number of MapLocations on the map
 
+    static final double SQRT_VISION_RADIUS = Math.sqrt(GameConstants.VISION_RADIUS_SQUARED);
+
     static int roundNumAtStartOfIteration = 0;
 
     static MapLocation lastSpawLocation = null;
@@ -23,9 +25,17 @@ public strictfp class RobotPlayer {
     static class PathingData {
         Direction stepDir;
         int numSteps;
-        PathingData() {
-            stepDir = null;
-            numSteps = MY_INF;
+        MapInfo sensedInfo;
+        int sensedRoundNum;
+        PathingData(Direction stepDir, int numSteps, RobotController rc) throws GameActionException {
+            this.stepDir = stepDir;
+            this.numSteps = numSteps;
+            if(rc.canSenseLocation(rc.getLocation())) {
+                this.sensedInfo = rc.senseMapInfo(rc.getLocation());
+                this.sensedRoundNum = rc.getRoundNum();
+            } else {
+                System.out.println("Couldn't sense our own location in PathingData constructor.  THIS SHOULD NEVER OCCUR.");
+            }
         }
     }
     static PathingData[][] daMap = null;
@@ -70,7 +80,7 @@ public strictfp class RobotPlayer {
                             lastSpawLocation = locToTry;
                             daMap = new PathingData[rc.getMapWidth()][rc.getMapHeight()];
                             daMap[lastSpawLocation.x][lastSpawLocation.y] =
-                                new PathingData(){{numSteps=0; stepDir=Direction.CENTER;}};
+                                new PathingData(Direction.CENTER, 0, rc);
                         }
                     }
                 } else {
@@ -371,7 +381,16 @@ public strictfp class RobotPlayer {
         }
     }
 
-
+    static Direction dirLastMoved = null;
+    static int roundLastMoved = -1;
+    /**
+     * PRECONDITION: canMove must have returned true for this dirToMove
+     */
+    static void moveAndUpdateMyVariables(RobotController rc, Direction dirToMove) throws GameActionException {
+        rc.move(dirToMove);
+        dirLastMoved = dirToMove;
+        roundLastMoved = rc.getRoundNum();
+    }
     static double evaluateLocationForCombat(RobotController rc, MapLocation locToEvaluate) {
         int numEnemiesThatCanReachThisLoc = 0;
         for(int k = 0; k < nearbyEnemyRobotsLength; k++) {
@@ -444,7 +463,7 @@ public strictfp class RobotPlayer {
             //         }
             //     }
             //     if(bestDir != null) {
-            //         rc.move(bestDir);
+            //         moveAndUpdateMyVariables(rc, bestDir);
             //     }
             // }
 
@@ -471,7 +490,7 @@ public strictfp class RobotPlayer {
                     }
                 }
                 if(bestDir != null) {
-                    rc.move(bestDir);
+                    moveAndUpdateMyVariables(rc, bestDir);
                     rc.setIndicatorString("combatMove" + String.valueOf(bestDir));
                 }
             } else {
@@ -550,7 +569,7 @@ public strictfp class RobotPlayer {
             }
             final Direction dir = rc.getLocation().directionTo(exploreTarget);
             if(canMove.test(rc, dir)) {
-                rc.move(dir);
+                moveAndUpdateMyVariables(rc, dir);
                 didMove = true;
             } else {
                 break;
@@ -627,6 +646,7 @@ public strictfp class RobotPlayer {
         // Flags that are picked up are not included.
         // So the array can be empty.
         // The locations broadcasted are based on the default location, even when the flag is sitting somewhere else.
+        // Also, I tested to determine whether these MapLocations are always on the map, and yes, all map locations returned by this method are on the map.
         MapLocation [] data = rc.senseBroadcastFlagLocations();
 
         for(MapLocation ml : data) {
@@ -771,7 +791,7 @@ public strictfp class RobotPlayer {
                     if(bestDir != null) {
                         isStuck = false;
                         if(bestDist < rc.getLocation().distanceSquaredTo(dest)) {
-                            rc.move(bestDir);
+                            moveAndUpdateMyVariables(rc, bestDir);
                         } else {
                             startBug(rc, dest);
                         }
@@ -806,7 +826,7 @@ public strictfp class RobotPlayer {
                                 // Let isStuck be true.
                             } else {
                                 bugMemory.add(rc.getLocation());
-                                rc.move(bugDirection);
+                                moveAndUpdateMyVariables(rc, bugDirection);
                                 isStuck = false;
                                 if(rc.getLocation().distanceSquaredTo(dest) < bugStartDistFromDest) {
                                     endBugStartFuzzy();
@@ -828,7 +848,7 @@ public strictfp class RobotPlayer {
         final MapLocation myLoc = rc.getLocation();
         PathingData myLocPd = daMap[myLoc.x][myLoc.y];
         if(myLocPd == null) {
-            myLocPd = new PathingData(){{numSteps=MY_INF; stepDir=null;}};
+            myLocPd = new PathingData(null, MY_INF, rc);
         }
         for(Direction d : MOVEMENT_DIRECTIONS) {
             final MapLocation adjLoc = rc.adjacentLocation(d);
@@ -861,7 +881,7 @@ public strictfp class RobotPlayer {
             }
             if(bestDir != null) {
                 if(rc.canMove(bestDir)) {
-                    rc.move(bestDir);
+                    moveAndUpdateMyVariables(rc, bestDir);
                 } else {
                     // A robot or water is blocking the path!
                     final MapLocation oneStepForward = rc.adjacentLocation(bestDir);
