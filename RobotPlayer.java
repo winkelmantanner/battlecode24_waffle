@@ -262,8 +262,7 @@ public strictfp class RobotPlayer {
     }
 
     static void buildCombatTraps(RobotController rc) throws GameActionException {
-        // Using just explosive traps performs much better than the mix of explosive and stun that I previously used.
-        final TrapType trapTypeToBuild = TrapType.EXPLOSIVE;//nearbyFriendlyRobotsLength >= 5 ? TrapType.STUN : TrapType.EXPLOSIVE;
+        final TrapType trapTypeToBuild = nearbyFriendlyRobotsLength >= 5 ? TrapType.STUN : TrapType.EXPLOSIVE;
         if(nearbyEnemyRobotsLength >= 5) {
             final double combatNumbersScalar = Math.pow(1.2, nearbyEnemyRobotsLength - nearbyFriendlyRobotsLength);
             double bestScore = 0;
