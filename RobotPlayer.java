@@ -213,6 +213,14 @@ public strictfp class RobotPlayer {
     // }
 
     static void fill(RobotController rc) throws GameActionException {
+        if(nearestCrumbLoc != null) {
+            final MapLocation locInDirOfNearestCrumb = rc.adjacentLocation(rc.getLocation().directionTo(nearestCrumbLoc));
+            if(rc.canFill(locInDirOfNearestCrumb)
+                && isPathClear(rc, nearestCrumbLoc, true, true)
+            ) {
+                rc.fill(locInDirOfNearestCrumb);
+            }
+        }
         if(rng.nextInt(100) < 5) {
             final Direction d = MOVEMENT_DIRECTIONS[rng.nextInt(MOVEMENT_DIRECTIONS.length)];
             if(rc.canFill(rc.adjacentLocation(d))) {
@@ -326,6 +334,7 @@ public strictfp class RobotPlayer {
     static int callForAssistanceRoundNum = 0;
     static MapLocation callForAssitanceLoc = null;
     static CallForAssistanceType callForAssistanceType = null;
+    static MapLocation nearestCrumbLoc = null;
     static int myFlagDroppedResetRounds = GameConstants.FLAG_DROPPED_RESET_ROUNDS;
     static void updateData(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
@@ -389,6 +398,18 @@ public strictfp class RobotPlayer {
             callForAssistanceType = CallForAssistanceType.valueOf(
                 rc.readSharedArray(CALL_FOR_ASSISTANCE_TYPE_INDEX)
             );
+        }
+
+        nearestCrumbLoc = null;
+        int minDistSqdToCrumbs = MY_INF;
+        for(MapLocation crumbLoc : rc.senseNearbyCrumbs(-1)) {
+            final int dist = rc.getLocation().distanceSquaredTo(crumbLoc);
+            if(nearestCrumbLoc == null
+                || dist < minDistSqdToCrumbs
+            ) {
+                nearestCrumbLoc = crumbLoc;
+                minDistSqdToCrumbs = dist;
+            }
         }
 
         boolean hasCapturingUpgrade = false;
@@ -476,31 +497,6 @@ public strictfp class RobotPlayer {
             && rc.isMovementReady()
             && rc.getRoundNum() >= GameConstants.SETUP_ROUNDS - 20
         ) {
-
-            // THIS MADE IT WORSE
-            // if(rc.getHealth() <= 0.5 * GameConstants.DEFAULT_HEALTH) {
-            //     double maxValue = 0;
-            //     Direction bestDir = null;
-            //     for(Direction d : MOVEMENT_DIRECTIONS) {
-            //         if(rc.canMove(d)) {
-            //             final MapLocation ml = rc.adjacentLocation(d);
-            //             double value = 0;
-            //             for(int k = 0; k < nearbyFriendlyRobotsLength; k++) {
-            //                 value += (double)1 / (ml.distanceSquaredTo(nearbyFriendlyRobots[k].location));
-            //             }
-            //             for(int k = 0; k < nearbyEnemyRobotsLength; k++) {
-            //                 value -= (double)1 / (ml.distanceSquaredTo(nearbyEnemyRobots[k].location));
-            //             }
-            //             if(bestDir == null || value > maxValue) {
-            //                 bestDir = d; maxValue = value;
-            //             }
-            //         }
-            //     }
-            //     if(bestDir != null) {
-            //         moveAndUpdateMyVariables(rc, bestDir);
-            //     }
-            // }
-
             if(nearestSensedEnemyFlag != null
                 && !nearestSensedEnemyFlag.isPickedUp()
             ) {
@@ -564,11 +560,47 @@ public strictfp class RobotPlayer {
         }
 
         if(!isOnFriendlyFlag && rc.isMovementReady()) {
-            exploreMove(rc);
-            rc.setIndicatorString("exploreMove" + String.valueOf(exploreTarget));
+            if(nearestCrumbLoc != null
+                && isPathClear(rc, nearestCrumbLoc, true, true)
+            ) {
+                hybridMove(rc, nearestCrumbLoc);
+                rc.setIndicatorString("crumbMove" + nearestCrumbLoc.toString());
+            } else {
+                exploreMove(rc);
+                rc.setIndicatorString("exploreMove" + String.valueOf(exploreTarget));
+            }
         }
     }
 
+    static boolean isPathClear(
+        RobotController rc,
+        MapLocation dest,
+        boolean isWaterPassable,
+        boolean testDestination
+    ) throws GameActionException {
+        // ignores robots
+        MapLocation curLocation = rc.getLocation();
+        boolean result = true;
+        while(result
+            && !curLocation.equals(dest)
+        ) {
+            curLocation = curLocation.add(curLocation.directionTo(dest));
+            if(!curLocation.equals(dest) || testDestination) {
+                if(rc.canSenseLocation(curLocation)) {
+                    final MapInfo mi = rc.senseMapInfo(curLocation);
+                    if(mi.isWall()
+                        || mi.isDam()
+                        || (!isWaterPassable && mi.isWater())
+                    ) {
+                        result = false;
+                    }
+                } else {
+                    result = false;
+                }
+            }
+        }
+        return result;
+    }
 
     static MapLocation exploreTarget = null;
     static MapLocation lastTurnExploreMoveEndLoc = null;
