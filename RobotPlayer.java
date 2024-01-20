@@ -2,8 +2,10 @@ package waffle;
 
 import battlecode.common.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -13,6 +15,17 @@ public strictfp class RobotPlayer {
     static Random rng;
 
     static final int ADJACENT_DISTANCE_SQUARED = 2;
+
+
+    static final int CALL_FOR_ASSISTANCE_X_INDEX = 0;
+    static final int CALL_FOR_ASSISTANCE_Y_INDEX = 1;
+    static final int CALL_FOR_ASSISTANCE_ROUND_INDEX = 2;
+    static final int CALL_FOR_ASSISTANCE_TYPE_INDEX = 3;
+
+    static final int FIRST_ENEMY_FLAG_ID_INDEX = 1 + CALL_FOR_ASSISTANCE_TYPE_INDEX;
+    static final int FIRST_ENEMY_FLAG_LOC_INDEX = 1 + FIRST_ENEMY_FLAG_ID_INDEX;
+    static final int FIRST_ENEMY_FLAG_ROUND_INDEX = 1 + FIRST_ENEMY_FLAG_LOC_INDEX;
+    static final int ENEMY_FLAG_INDEX_OFFSET = 3; // This must be the number of indexes used for each flag, so if you add another one, you must update this.
 
     static final int MY_INF = 12345; // larger than maximum number of MapLocations on the map
 
@@ -86,6 +99,7 @@ public strictfp class RobotPlayer {
                 } else {
                     updateData(rc);
                     manageEnemyFlagBroadcastData(rc);
+                    manageEnemyFlagKnowledge(rc);
                     callForHelpIfEnemiesApproachFlag(rc);
 
                     pickupEnemyFlags(rc);
@@ -312,6 +326,7 @@ public strictfp class RobotPlayer {
     static int callForAssistanceRoundNum = 0;
     static MapLocation callForAssitanceLoc = null;
     static CallForAssistanceType callForAssistanceType = null;
+    static int myFlagDroppedResetRounds = GameConstants.FLAG_DROPPED_RESET_ROUNDS;
     static void updateData(RobotController rc) throws GameActionException {
         nearbyFriendlyRobotsLength = 0;
         nearbyEnemyRobotsLength = 0;
@@ -369,6 +384,20 @@ public strictfp class RobotPlayer {
             callForAssistanceType = CallForAssistanceType.valueOf(
                 rc.readSharedArray(CALL_FOR_ASSISTANCE_TYPE_INDEX)
             );
+        }
+
+        boolean hasCapturingUpgrade = false;
+        for(GlobalUpgrade gu : rc.getGlobalUpgrades(rc.getTeam())) {
+            if(gu.equals(GlobalUpgrade.CAPTURING)) {
+                hasCapturingUpgrade = true;
+            }
+        }
+        if(hasCapturingUpgrade) {
+            myFlagDroppedResetRounds =
+                GameConstants.FLAG_DROPPED_RESET_ROUNDS
+                + GlobalUpgrade.CAPTURING.flagReturnDelayChange;
+        } else {
+            myFlagDroppedResetRounds = GameConstants.FLAG_DROPPED_RESET_ROUNDS;
         }
     }
 
@@ -505,8 +534,12 @@ public strictfp class RobotPlayer {
                     hybridMove(rc, callForAssitanceLoc);
                     rc.setIndicatorString("A" + callForAssitanceLoc.toString() + callForAssistanceRoundNum);
                 } else {
-                    // I tried making it go for whichever is nearer of target and callForAssitanceLoc, and it won 8, lost 13 against the previous version.  Note that I ignore rounds were the victory condition is level sum, or anything other than flags.
-                    MapLocation target = nearestBroadcastLoc;
+                    MapLocation target = (
+                        nearestNonexpiredEnemyFlagMemoryElement != null
+                            && nearestNonexpiredEnemyFlagMemoryElement.where != null
+                        ? nearestNonexpiredEnemyFlagMemoryElement.where
+                        : nearestBroadcastLoc
+                    );
                     if(target != null
                         && nearbyFriendlyRobotsLength >= 1
                     ) {
@@ -515,17 +548,10 @@ public strictfp class RobotPlayer {
                     } else {
                         if(isCFALavailable) {
                             hybridMove(rc, callForAssitanceLoc);
-                            rc.setIndicatorString("C" + callForAssitanceLoc.toString() + callForAssistanceRoundNum);
+                            rc.setIndicatorString("C" + callForAssitanceLoc.toString() + callForAssistanceRoundNum + String.valueOf(target));
                         } else {
-                            hybridMove(rc, lastSpawLocation);
-
-                            // hybridMove(
-                            //     rc,
-                            //     lastSpawLocation,
-                            //     (rcInner, d) -> lastSpawLocation.distanceSquaredTo(rcInner.adjacentLocation(d))
-                            //         >= 3*3
-                            // );
-                            rc.setIndicatorString("D" + lastSpawLocation.toString() + "callForAssitanceLoc" + String.valueOf(callForAssitanceLoc));
+                            exploreMove(rc);
+                            rc.setIndicatorString("D" + lastSpawLocation.toString() + "callForAssitanceLoc" + String.valueOf(callForAssitanceLoc) + String.valueOf(target));
                         }
                     }
                 }
@@ -598,10 +624,6 @@ public strictfp class RobotPlayer {
             return null;
         }
     };
-    static final int CALL_FOR_ASSISTANCE_X_INDEX = 0;
-    static final int CALL_FOR_ASSISTANCE_Y_INDEX = 1;
-    static final int CALL_FOR_ASSISTANCE_ROUND_INDEX = 2;
-    static final int CALL_FOR_ASSISTANCE_TYPE_INDEX = 3;
     static void callForAssistance(
         RobotController rc,
         MapLocation locToSend,
@@ -693,9 +715,141 @@ public strictfp class RobotPlayer {
             }
 
             if(!isNearestBroadcastLocStillPossible) {
-                myBroadcastMap.remove(nearestBroadcastLoc);
+                MyBroadcastLocationData a = myBroadcastMap.get(nearestBroadcastLoc);
+                a.isEliminated = true;
+                myBroadcastMap.put(nearestBroadcastLoc, a);
             }
         }
+    }
+
+
+    static int getIntFromMapLocation(MapLocation ml) throws GameActionException {
+        assert ml.x >= 0 && ml.y >= 0;
+        return (ml.x << 8) | ml.y;
+    }
+    static MapLocation getMapLocationFromInt(int i) throws GameActionException {
+        assert i < (1 << 16);
+        return new MapLocation(i >> 8, i & 0b11111111);
+    }
+
+    static class FlagMemoryElement {
+        MapLocation where;
+        int whenFirst;
+        int whenLast;
+        int flagId;
+        @Override
+        public String toString() {
+            return String.valueOf(where) + ":" + whenFirst + ":" + whenLast + ":" + flagId;
+        }
+    }
+    static List<FlagMemoryElement> flagMemory = new ArrayList<>();
+    static void writeEnemyFlagToSharedArray(
+        RobotController rc, int indexOffset, FlagMemoryElement elToWrite
+    ) throws GameActionException {
+        rc.writeSharedArray(FIRST_ENEMY_FLAG_ID_INDEX + indexOffset, elToWrite.flagId);
+        rc.writeSharedArray(FIRST_ENEMY_FLAG_LOC_INDEX + indexOffset, getIntFromMapLocation(elToWrite.where));
+        rc.writeSharedArray(FIRST_ENEMY_FLAG_ROUND_INDEX + indexOffset, elToWrite.whenLast);
+    }
+    static FlagMemoryElement readFlagFromSharedArray(
+        RobotController rc, int indexOffset
+    ) throws GameActionException {
+        FlagMemoryElement fme = new FlagMemoryElement();
+        fme.flagId = rc.readSharedArray(FIRST_ENEMY_FLAG_ID_INDEX + indexOffset);
+        fme.where = getMapLocationFromInt(rc.readSharedArray(FIRST_ENEMY_FLAG_LOC_INDEX + indexOffset));
+        fme.whenFirst = fme.whenLast = rc.readSharedArray(FIRST_ENEMY_FLAG_ROUND_INDEX + indexOffset);
+        return fme;
+    }
+    static void updateFlagMemoryFromSensedFlags(RobotController rc) throws GameActionException {
+        for(FlagInfo fi : sensedFlags) {
+            if(rc.getTeam().opponent().equals(fi.getTeam())
+                && !fi.isPickedUp()
+            ) {
+                boolean found = false;
+                for(FlagMemoryElement el : flagMemory) {
+                    if(el.flagId == fi.getID()) {
+                        found = true;
+                        if(fi.getLocation().equals(el.where)) {
+                            el.whenLast = rc.getRoundNum();
+                        } else {
+                            el.where = fi.getLocation();
+                            el.whenFirst = rc.getRoundNum();
+                            el.whenLast = rc.getRoundNum();
+                        }
+                    }
+                }
+                if(!found) {
+                    FlagMemoryElement fme = new FlagMemoryElement();
+                    fme.where = fi.getLocation();
+                    fme.whenFirst = fme.whenLast = rc.getRoundNum();
+                    fme.flagId = fi.getID();
+                    // System.out.println(fme.flagId);
+                    flagMemory.add(fme);
+                }
+            }
+        }
+    }
+    static void synchronizeFlagMemoryWithSharedArray(RobotController rc) throws GameActionException {
+        for(int k = 0; k < GameConstants.NUMBER_FLAGS; k++) {
+            final int indexOffset = k * ENEMY_FLAG_INDEX_OFFSET;
+            final FlagMemoryElement flagFromSharedArray = readFlagFromSharedArray(rc, indexOffset);
+            if(flagFromSharedArray.flagId != 0) {
+                boolean foundInFlagMemory = false;
+                for(FlagMemoryElement flagFromMemory : flagMemory) {
+                    if(flagFromMemory.flagId == flagFromSharedArray.flagId) {
+                        foundInFlagMemory = true;
+                        if(flagFromSharedArray.whenLast > flagFromMemory.whenLast) {
+                            flagFromMemory.whenLast = flagFromSharedArray.whenLast;
+                            flagFromMemory.where = flagFromSharedArray.where;
+                        } else if(flagFromMemory.whenLast > flagFromSharedArray.whenLast
+                            && flagFromMemory.whenLast - flagFromMemory.whenFirst
+                                >= 2 + myFlagDroppedResetRounds
+                        ) {
+                            writeEnemyFlagToSharedArray(rc, indexOffset, flagFromMemory);
+                        }
+                    }
+                }
+                if(!foundInFlagMemory) {
+                    flagMemory.add(flagFromSharedArray);
+                }
+            }
+        }
+        for(FlagMemoryElement flagFromMemory : flagMemory) {
+            boolean foundInSharedArray = false;
+            int firstEmptyIndexOffset = -1;
+            for(int k = 0; k < GameConstants.NUMBER_FLAGS; k++) {
+                final int indexOffset = k * ENEMY_FLAG_INDEX_OFFSET;
+                final FlagMemoryElement flagFromSharedArray = readFlagFromSharedArray(rc, indexOffset);
+                if(flagFromSharedArray.flagId == flagFromMemory.flagId) {
+                    foundInSharedArray = true;
+                }
+                if(flagFromSharedArray.flagId == 0 && firstEmptyIndexOffset == -1) {
+                    firstEmptyIndexOffset = indexOffset;
+                }
+            }
+            if(!foundInSharedArray) {
+                assert firstEmptyIndexOffset >= 0;
+                writeEnemyFlagToSharedArray(rc, firstEmptyIndexOffset, flagFromMemory);
+            }
+        }
+    }
+    static FlagMemoryElement nearestNonexpiredEnemyFlagMemoryElement = null;
+    static void updateNearestKnownEnemyFlagLocAndRound(RobotController rc) throws GameActionException {
+        nearestNonexpiredEnemyFlagMemoryElement = null;
+        int minDist = MY_INF;
+        for(FlagMemoryElement fme : flagMemory) {
+            if(rc.getRoundNum() - fme.whenLast <= 20
+                && (nearestNonexpiredEnemyFlagMemoryElement == null
+                    || rc.getLocation().distanceSquaredTo(fme.where) < minDist
+                )
+            ) {
+                nearestNonexpiredEnemyFlagMemoryElement = fme;
+            }
+        }
+    }
+    static void manageEnemyFlagKnowledge(RobotController rc) throws GameActionException {
+        updateFlagMemoryFromSensedFlags(rc);
+        synchronizeFlagMemoryWithSharedArray(rc);
+        updateNearestKnownEnemyFlagLocAndRound(rc);
     }
 
     static void callForHelpIfEnemiesApproachFlag(RobotController rc) throws GameActionException {
