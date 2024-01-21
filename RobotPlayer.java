@@ -270,7 +270,7 @@ public strictfp class RobotPlayer {
     }
 
     static void buildCombatTraps(RobotController rc) throws GameActionException {
-        final TrapType trapTypeToBuild = nearbyFriendlyRobotsLength >= 5 ? TrapType.STUN : TrapType.EXPLOSIVE;
+        final TrapType trapTypeToBuild = nearbyFriendlyRobotsLength >= 3 ? TrapType.STUN : TrapType.EXPLOSIVE;
         if(nearbyEnemyRobotsLength >= 5) {
             final double combatNumbersScalar = Math.pow(1.2, nearbyEnemyRobotsLength - nearbyFriendlyRobotsLength);
             double bestScore = 0;
