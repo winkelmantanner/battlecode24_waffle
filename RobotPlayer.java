@@ -254,23 +254,19 @@ public strictfp class RobotPlayer {
             if(rc.getLocation().equals(fi.getLocation())
                 && rc.getTeam().equals(fi.getTeam())
             ) {
-                for(MapInfo ml : rc.senseNearbyMapInfos(2)) {
-                    TrapType trapTypeToBuild;
-                    if(1 == rc.getLocation().distanceSquaredTo(ml.getMapLocation())) {
-                        trapTypeToBuild = TrapType.STUN;
-                    } else {
-                        trapTypeToBuild = TrapType.EXPLOSIVE;
-                    }
-                    if(rc.canBuild(trapTypeToBuild, ml.getMapLocation())) {
-                        rc.build(trapTypeToBuild, ml.getMapLocation());
-                    }
+                if(rc.canBuild(TrapType.STUN, rc.getLocation())) {
+                    rc.build(TrapType.STUN, rc.getLocation());
+                } else if(nearestEnemyRobot != null
+                    && rc.canBuild(TrapType.EXPLOSIVE, rc.adjacentLocation(rc.getLocation().directionTo(nearestEnemyRobot.location)))
+                ) {
+                    rc.build(TrapType.EXPLOSIVE, rc.adjacentLocation(rc.getLocation().directionTo(nearestEnemyRobot.location)));
                 }
             }
         }
     }
 
     static void buildCombatTraps(RobotController rc) throws GameActionException {
-        final TrapType trapTypeToBuild = nearbyFriendlyRobotsLength >= 3 ? TrapType.STUN : TrapType.EXPLOSIVE;
+        final TrapType trapTypeToBuild = TrapType.STUN;
         if(nearbyEnemyRobotsLength >= 5) {
             final double combatNumbersScalar = Math.pow(1.2, nearbyEnemyRobotsLength - nearbyFriendlyRobotsLength);
             double bestScore = 0;
