@@ -501,6 +501,23 @@ public strictfp class RobotPlayer {
                 rc.setIndicatorString("nearestSensedEnemyFlag move " + String.valueOf(nearestSensedEnemyFlag));
             }
 
+            int minDistSqdToFriendNeedingHealed = MY_INF;
+            RobotInfo nearestFriendNeedingHealed = null;
+            for(int k = 0; k < nearbyFriendlyRobotsLength; k++) {
+                final RobotInfo ri = nearbyFriendlyRobots[k];
+                if(ri.getHealth() <= TrapType.EXPLOSIVE.enterDamage
+                    && isPathClear(rc, ri.location, false, false)
+                ) {
+                    final int dist = rc.getLocation().distanceSquaredTo(ri.location);
+                    if(nearestFriendNeedingHealed == null
+                        || dist < minDistSqdToFriendNeedingHealed
+                    ) {
+                        nearestFriendNeedingHealed = ri;
+                        minDistSqdToFriendNeedingHealed = dist;
+                    }
+                }
+            }
+
             if(nearestEnemyRobot != null
                 && rc.getLocation().distanceSquaredTo(nearestEnemyRobot.location)
                     <= 6 + GameConstants.ATTACK_RADIUS_SQUARED
@@ -520,6 +537,8 @@ public strictfp class RobotPlayer {
                     moveAndUpdateMyVariables(rc, bestDir);
                     rc.setIndicatorString("combatMove" + String.valueOf(bestDir));
                 }
+            } else if(nearestFriendNeedingHealed != null) {
+                hybridMove(rc, nearestFriendNeedingHealed.location);
             } else {
                 final boolean isCFALavailable = (
                     callForAssitanceLoc != null
