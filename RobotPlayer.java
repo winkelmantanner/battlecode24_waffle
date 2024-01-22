@@ -258,9 +258,9 @@ public strictfp class RobotPlayer {
                     rc.build(TrapType.STUN, rc.getLocation());
                 } else if(nearestEnemyRobot != null
                     && isPathClear(rc, nearestEnemyRobot.location, true, false)
-                    && rc.canBuild(TrapType.EXPLOSIVE, rc.adjacentLocation(rc.getLocation().directionTo(nearestEnemyRobot.location)))
+                    && rc.canBuild(TrapType.STUN, rc.adjacentLocation(rc.getLocation().directionTo(nearestEnemyRobot.location)))
                 ) {
-                    rc.build(TrapType.EXPLOSIVE, rc.adjacentLocation(rc.getLocation().directionTo(nearestEnemyRobot.location)));
+                    rc.build(TrapType.STUN, rc.adjacentLocation(rc.getLocation().directionTo(nearestEnemyRobot.location)));
                 }
             }
         }
